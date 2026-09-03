@@ -5,6 +5,10 @@ venv/
 .venv/
 *.egg-info/
 
+# Database (runtime artifact, recreated on startup)
+backend/data/*.db
+backend/data/*.db-journal
+
 # Node / frontend
 node_modules/
 dist/

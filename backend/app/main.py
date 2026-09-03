@@ -1,15 +1,20 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import prediction
+from app.core.config import settings
+from app.core.database import Base, SessionLocal, engine
+
+logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(
     title="SANRAKSHA API",
-    description="Landslide early-warning system - Phase 1 prototype",
-    version="0.1.0",
+    description="Landslide early-warning system",
+    version="0.2.0",
 )
 
-# Allow the Vite dev server (and any origin in this prototype phase) to call the API.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -19,6 +24,25 @@ app.add_middleware(
 )
 
 app.include_router(prediction.router)
+
+
+@app.on_event("startup")
+def on_startup():
+    Base.metadata.create_all(bind=engine)
+
+    # Bootstrap sample locations + an initial reading on first run only.
+    from app.services import prediction_service
+
+    db = SessionLocal()
+    try:
+        prediction_service.seed_if_empty(db)
+    finally:
+        db.close()
+
+    if settings.ENABLE_SCHEDULER:
+        from app.core.scheduler import start_scheduler
+
+        start_scheduler()
 
 
 @app.get("/")

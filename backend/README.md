@@ -1,6 +1,7 @@
-# Sanraksha backend (Phase 1)
+# Sanraksha backend
 
-FastAPI service exposing a landslide risk assessment API.
+FastAPI service: persists readings, runs the risk model, and exposes the
+dashboard/sync/ingest API.
 
 ## Run locally
 
@@ -11,18 +12,22 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
-The API is now available at `http://localhost:8000`, with interactive docs at
-`http://localhost:8000/docs`.
+`http://localhost:8000/docs` has interactive API docs. On first run the app
+creates `data/sanraksha.db` (SQLite) and seeds 5 sample locations.
+
+Copy `../.env.example` to `.env` (or export the same vars) to override any
+default — database URL, mock vs. real IMD, scheduler, MQTT/ingest settings.
 
 ## Endpoints
 
-| Method | Path             | Description                                                    |
-|--------|------------------|------------------------------------------------------------------|
-| GET    | `/health`        | Liveness check                                                  |
-| GET    | `/api/dashboard` | All sample monitoring locations with a live risk assessment     |
-| POST   | `/api/predict`   | Run the risk model against a single reading you supply          |
-
-Example:
+| Method | Path                          | Description                                                  |
+|--------|-------------------------------|----------------------------------------------------------------|
+| GET    | `/health`                     | Liveness check                                                 |
+| GET    | `/api/dashboard`               | Latest reading + risk assessment for every location            |
+| GET    | `/api/locations/{id}/history`  | Recent readings + predictions for one location, newest first   |
+| POST   | `/api/predict`                 | Score a manually-supplied reading (not persisted)               |
+| POST   | `/api/sync/run`                | Pull fresh IMD + satellite data for every location, store it    |
+| POST   | `/api/ingest`                  | Store + score a sensor reading (used by `iot/gateway/gateway.py`) |
 
 ```bash
 curl -X POST http://localhost:8000/api/predict \
@@ -30,21 +35,30 @@ curl -X POST http://localhost:8000/api/predict \
   -d '{"rainfall_mm_24h": 180, "soil_moisture_pct": 82, "slope_deg": 38}'
 ```
 
-## About the prediction model
+## Data flow
 
-`app/ml/predictor.py` is a transparent, rule-based scoring model — it weighs
-rainfall, soil moisture, and slope angle into a 0–100 risk score with an
-extra penalty when rainfall and soil moisture are both high at once (the
-classic landslide trigger combination). It's a deliberate stand-in for the
-trained ML model referenced in the full architecture
-(`ml/models/landslide_prediction_model.pkl`).
+Three sources write `Reading` rows, all scored the same way:
 
-To swap in a real trained model later: keep `RiskFeatures` and `RiskResult`
-as the interface, and replace the body of `predict()` with a call to your
-loaded model. Nothing in the API layer needs to change.
+- **`seed`** — bootstrap data from `data/sample/sample_readings.json`, once, on first run
+- **`sync`** — `app/services/imd_service.py` + `satellite_service.py`, triggered by
+  `POST /api/sync/run` or the background scheduler (`ENABLE_SCHEDULER=true`)
+- **`iot`** — the gateway posting to `/api/ingest`, see `../iot/README.md`
 
-## Sample data
+Every `Reading` gets a `Prediction` (score, level, contributing factors,
+recommendation) computed immediately and stored alongside it.
 
-`data/sample/sample_readings.json` holds five hill-region locations across
-Kerala, Tamil Nadu, West Bengal, and Himachal Pradesh, used to seed
-`/api/dashboard`.
+## The prediction model
+
+`app/ml/predictor.py` loads the trained model from `../ml/models/landslide_model.pkl`
+(see `../ml/README.md`) at first use. If that file is missing or fails to
+load, it transparently falls back to a rule-based scorer — both paths
+share the same `RiskFeatures` in / `RiskResult` out interface, and the
+response always reports which one ran via `model_used`.
+
+## IMD / satellite adapters
+
+`app/services/imd_service.py` and `satellite_service.py` default to
+realistic mock data (`USE_MOCK_IMD=true`). Each has a `_fetch_real()`
+function with the intended real-API call shape — point it at actual IMD /
+data.gov.in / satellite endpoints and flip `USE_MOCK_IMD=false` when you
+have credentials; nothing else in the app needs to change.

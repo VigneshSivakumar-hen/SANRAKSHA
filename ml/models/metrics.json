@@ -1,0 +1,36 @@
+{
+  "roc_auc": 0.8229334575665813,
+  "feature_importances": {
+    "rainfall_mm_24h": 0.357,
+    "soil_moisture_pct": 0.3,
+    "slope_deg": 0.259,
+    "temperature_c": 0.084
+  },
+  "report": {
+    "0": {
+      "precision": 0.8296774193548387,
+      "recall": 0.8088050314465409,
+      "f1-score": 0.8191082802547771,
+      "support": 795.0
+    },
+    "1": {
+      "precision": 0.6423529411764706,
+      "recall": 0.674074074074074,
+      "f1-score": 0.6578313253012048,
+      "support": 405.0
+    },
+    "accuracy": 0.7633333333333333,
+    "macro avg": {
+      "precision": 0.7360151802656547,
+      "recall": 0.7414395527603075,
+      "f1-score": 0.738469802777991,
+      "support": 1200.0
+    },
+    "weighted avg": {
+      "precision": 0.7664554079696395,
+      "recall": 0.7633333333333333,
+      "f1-score": 0.7646773079579465,
+      "support": 1200.0
+    }
+  }
+}

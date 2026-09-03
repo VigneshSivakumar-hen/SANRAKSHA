@@ -1,103 +1,145 @@
 # Sanraksha — Landslide Early Warning System
 
-**Phase 1: basic working prototype.**
-
-Rainfall / soil-moisture / slope readings → FastAPI backend → rule-based
-risk model → risk level → React dashboard.
+**Phases 1–3 built and tested: prototype, real-data pipeline + trained ML
+model, and an IoT sensor-to-dashboard flow.**
 
 ```
-Rainfall = 182 mm
-Soil Moisture = 84%
-Slope = 39°
-        ↓
-  risk model (backend/app/ml/predictor.py)
-        ↓
-  CRITICAL — risk score 98
-        ↓
-  React dashboard (color-coded card + map marker + recommendation)
+IoT sensor node (real ESP32, or the simulator)
+        │  MQTT
+        ▼
+   Gateway  ──────────┐
+                       │
+IMD rainfall (mock)    │  HTTP
+Satellite soil (mock)  │
+        │  scheduled/manual sync
+        ▼              ▼
+              Backend (FastAPI)
+              stores Reading → SQLite
+              runs trained RandomForest (fallback: rule-based scorer)
+              stores Prediction
+                       │
+                       ▼
+              React dashboard — map, risk cards, history, manual test form
 ```
 
-This repo currently contains the Phase 1 slice only:
+## What's built
 
 ```
 SANRAKSHA/
-├── backend/
+├── backend/                          FastAPI app
 │   ├── app/
-│   │   ├── main.py                     FastAPI app + CORS
-│   │   ├── schemas.py                  Pydantic request/response models
-│   │   ├── api/routes/prediction.py    GET /api/dashboard, POST /api/predict
-│   │   ├── ml/predictor.py             Rule-based risk scoring model
-│   │   └── services/prediction_service.py
-│   ├── data/sample/sample_readings.json
-│   ├── requirements.txt
-│   └── README.md
+│   │   ├── main.py                   App startup: creates tables, seeds locations, optional scheduler
+│   │   ├── core/
+│   │   │   ├── config.py             All settings, env-var driven
+│   │   │   ├── database.py           SQLAlchemy engine/session (SQLite by default)
+│   │   │   └── scheduler.py          Optional periodic IMD/satellite sync (APScheduler)
+│   │   ├── models/__init__.py        ORM: Location, Reading, Prediction
+│   │   ├── schemas.py                Pydantic request/response models
+│   │   ├── api/routes/prediction.py  /api/dashboard, /api/predict, /api/sync/run, /api/ingest, /api/locations/{id}/history
+│   │   ├── ml/predictor.py           Trained-model inference, with rule-based fallback
+│   │   └── services/
+│   │       ├── imd_service.py        Rainfall adapter (mock by default; real IMD client shape included)
+│   │       ├── satellite_service.py  Soil-moisture adapter (mock by default)
+│   │       └── prediction_service.py Orchestrates DB + predictor
+│   ├── data/sample/sample_readings.json   Seed data for first run
+│   └── requirements.txt
 │
-├── frontend/web-dashboard/
-│   ├── src/
-│   │   ├── App.jsx, main.jsx
-│   │   ├── pages/Dashboard.jsx
-│   │   ├── components/RiskCard.jsx, RiskMap.jsx
-│   │   ├── services/api.js
-│   │   └── styles/global.css
-│   ├── package.json, vite.config.js, index.html
-│   └── README.md
+├── ml/                                Training pipeline (separate from runtime inference)
+│   ├── training/generate_dataset.py   Synthetic-but-physically-plausible landslide dataset
+│   ├── training/train.py              Trains + saves the RandomForest model
+│   ├── datasets/landslide_training_data.csv
+│   └── models/landslide_model.pkl, metrics.json
 │
-└── README.md                            (this file)
+├── iot/                                Phase 3: sensors → MQTT → gateway → backend
+│   ├── sensor_node/                    ESP32 firmware (soil moisture, rain, temperature)
+│   ├── simulator/simulate_sensors.py   Simulated sensors for testing without hardware
+│   ├── gateway/gateway.py              Subscribes to MQTT, forwards to /api/ingest
+│   └── communication/                  mqtt_client.py (used, tested) + lora_handler.py (interface only)
+│
+├── frontend/web-dashboard/             React + Vite dashboard
+│
+└── README.md                           (this file)
 ```
 
-Later phases (real IMD/satellite data ingestion, a trained ML model, a
-database, IoT sensor nodes, mobile app, alerting) are described in the
-original architecture doc but not built yet — see "Roadmap" below.
-
-## Quickstart
-
-Two terminals:
+## Quickstart — full stack
 
 ```bash
-# Terminal 1 — backend
+# 1. Backend
 cd backend
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
+```
 
-# Terminal 2 — frontend
+```bash
+# 2. Frontend (separate terminal)
 cd frontend/web-dashboard
 npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`. You should see five sample hill-region
-locations with live-computed risk levels, an SVG map, and a form to test
-your own rainfall/soil-moisture/slope reading against the model.
+Open `http://localhost:5173`. On first run the backend seeds 5 sample
+hill-region locations (Kerala, Tamil Nadu, West Bengal, Himachal Pradesh)
+with an initial reading each.
 
-## How the risk model works
+Pull fresh (mock) IMD + satellite data for every location:
 
-`backend/app/ml/predictor.py` is a rule-based scorer (0–100), not yet a
-trained ML model:
+```bash
+curl -X POST http://localhost:8000/api/sync/run
+```
 
-- Rainfall (last 24h) contributes up to 40 points, ramping up sharply past 100mm
-- Soil moisture contributes up to 30 points, ramping up sharply past 70%
-- Slope angle contributes up to 30 points, ramping up sharply past 30°
-- An extra penalty applies when rainfall and soil moisture are **both**
-  high at once — the classic landslide trigger
+See `iot/README.md` to run the simulated sensor → MQTT → gateway → backend
+pipeline (tested end-to-end with a local mosquitto broker), and
+`ml/README.md` to retrain the model.
+
+## The risk model
+
+`backend/app/ml/predictor.py` tries a trained RandomForest classifier first
+(`ml/models/landslide_model.pkl`, ROC-AUC ~0.82 — see `ml/README.md` for
+what it was trained on and why). If that model file is missing or fails to
+load, it falls back automatically to a transparent rule-based scorer, and
+every API response says which one produced the result via `model_used`
+(`"trained"` or `"rule_based"`) — the system degrades gracefully rather
+than breaking if a model artifact isn't present.
 
 Score bands: `LOW` (0–24), `MODERATE` (25–49), `HIGH` (50–74), `CRITICAL`
 (75–100).
 
-This keeps the system fully functional and explainable today, while
-matching the interface (`RiskFeatures` in → `RiskResult` out) that a
-trained model will use in a later phase — see `backend/README.md`.
+## API reference
+
+| Method | Path                              | Description                                              |
+|--------|------------------------------------|------------------------------------------------------------|
+| GET    | `/api/dashboard`                  | Latest reading + risk for every location                  |
+| GET    | `/api/locations/{id}/history`     | Recent readings + predictions for one location             |
+| POST   | `/api/predict`                    | Score a manually-entered reading (not persisted)           |
+| POST   | `/api/sync/run`                   | Manually trigger an IMD + satellite pull for all locations |
+| POST   | `/api/ingest`                     | Sensor reading ingest, used by the IoT gateway              |
+
+## What's genuinely tested vs. reference-only
+
+**Tested end-to-end in this environment:**
+- Backend startup, DB seeding, dashboard, manual predict, sync, history
+- Trained model loading and inference, with fallback verified by design
+- Full IoT chain: sensor simulator → real local MQTT broker (mosquitto) →
+  gateway → `/api/ingest` → database → updated risk level, including a
+  simulated storm escalating one location from MODERATE to CRITICAL
+
+**Reference code, not executable here (needs real infrastructure/hardware):**
+- `imd_service.py` / `satellite_service.py`'s real API branches — this
+  sandbox can't reach live government weather APIs; mock providers are
+  used by default and are what's actually exercised
+- `iot/sensor_node/*.ino` — ESP32 firmware; needs real hardware to flash
+  and calibrate, see `iot/README.md`
+- `iot/communication/lora_handler.py` — documents the intended interface
+  for a LoRa-to-gateway bridge; not implemented against real LoRa radios
 
 ## Roadmap (not built yet)
 
-- **Phase 2 — real data:** ingest live IMD rainfall data, persist readings
-  in a database (Postgres/PostGIS), replace the rule-based scorer with a
-  trained model (`ml/training/`, scikit-learn or similar).
-- **Phase 3 — IoT:** soil-moisture and rain sensor nodes (ESP32/Arduino)
-  publishing over MQTT/LoRa to a gateway that feeds the backend directly.
-- **Later:** satellite imagery ingestion, GIS slope/elevation analysis, SMS
-  and siren alerting, the Flutter mobile app, authentication, and the
-  reports module — as laid out in the original full architecture.
+- GIS slope/elevation analysis from real elevation data (currently slope
+  is a static per-location value)
+- SMS/siren alerting, the Flutter mobile app, authentication, the reports
+  module — as laid out in the original full architecture
+- Postgres/PostGIS instead of SQLite for a real multi-node deployment
 
 ## License
 
