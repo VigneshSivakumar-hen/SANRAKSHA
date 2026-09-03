@@ -1,0 +1,57 @@
+[
+  {
+    "location_id": "munnar-01",
+    "location_name": "Munnar Ridge",
+    "state": "Kerala",
+    "lat": 10.0889,
+    "lon": 77.0595,
+    "rainfall_mm_24h": 182,
+    "soil_moisture_pct": 84,
+    "slope_deg": 39,
+    "temperature_c": 19.2
+  },
+  {
+    "location_id": "wayanad-02",
+    "location_name": "Wayanad Hills",
+    "state": "Kerala",
+    "lat": 11.6854,
+    "lon": 76.1320,
+    "rainfall_mm_24h": 96,
+    "soil_moisture_pct": 61,
+    "slope_deg": 27,
+    "temperature_c": 21.5
+  },
+  {
+    "location_id": "nilgiris-03",
+    "location_name": "Nilgiris Slope",
+    "state": "Tamil Nadu",
+    "lat": 11.4064,
+    "lon": 76.6932,
+    "rainfall_mm_24h": 45,
+    "soil_moisture_pct": 38,
+    "slope_deg": 22,
+    "temperature_c": 18.7
+  },
+  {
+    "location_id": "darjeeling-04",
+    "location_name": "Darjeeling Escarpment",
+    "state": "West Bengal",
+    "lat": 27.0410,
+    "lon": 88.2663,
+    "rainfall_mm_24h": 210,
+    "soil_moisture_pct": 91,
+    "slope_deg": 44,
+    "temperature_c": 14.1
+  },
+  {
+    "location_id": "shimla-05",
+    "location_name": "Shimla Ridge Road",
+    "state": "Himachal Pradesh",
+    "lat": 31.1048,
+    "lon": 77.1734,
+    "rainfall_mm_24h": 12,
+    "soil_moisture_pct": 22,
+    "slope_deg": 31,
+    "temperature_c": 16.4
+  }
+]

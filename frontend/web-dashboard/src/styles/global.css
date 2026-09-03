@@ -1,0 +1,65 @@
+:root {
+  /* Base palette — control-room, earth-toned */
+  --bg: #1b1f1d;
+  --panel: #232724;
+  --panel-raised: #2a2f2b;
+  --line: #363c37;
+  --text: #e8e6dd;
+  --text-muted: #9aa39a;
+
+  /* Risk semaphore — the only saturated color in the system, used ONLY for risk */
+  --risk-low: #4c9a6a;
+  --risk-moderate: #d9a441;
+  --risk-high: #d9702d;
+  --risk-critical: #b23a2e;
+
+  --font-display: "Spectral", Georgia, serif;
+  --font-body: "IBM Plex Sans", -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+}
+
+::selection {
+  background: var(--risk-moderate);
+  color: #1b1f1d;
+}
+
+a {
+  color: inherit;
+}
+
+/* Focus visibility for accessibility */
+:focus-visible {
+  outline: 2px solid var(--risk-moderate);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
