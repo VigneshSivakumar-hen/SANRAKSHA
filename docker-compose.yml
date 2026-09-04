@@ -1,0 +1,122 @@
+services:
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+
+    container_name: sanraksha-backend
+
+    environment:
+      DATABASE_URL: sqlite:////app/backend/data/sanraksha.db
+
+      USE_MOCK_IMD: "true"
+
+      ENABLE_SCHEDULER: "true"
+
+      SYNC_INTERVAL_MINUTES: "30"
+
+      MQTT_BROKER_HOST: mosquitto
+      MQTT_BROKER_PORT: "1883"
+
+      MQTT_TOPIC_PREFIX: sanraksha/sensors
+
+      INGEST_TOKEN: ${INGEST_TOKEN:-sanraksha-demo-token}
+
+    volumes:
+      - sanraksha_data:/app/backend/data
+
+    depends_on:
+      - mosquitto
+
+    expose:
+      - "8000"
+
+    restart: unless-stopped
+
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+
+    container_name: sanraksha-frontend
+
+    ports:
+      - "80:80"
+
+    depends_on:
+      - backend
+
+    restart: unless-stopped
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+
+    container_name: sanraksha-mqtt
+
+    ports:
+      - "1883:1883"
+
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mqtt_data:/mosquitto/data
+
+    restart: unless-stopped
+
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+
+    container_name: sanraksha-gateway
+
+    command: >
+      python /app/iot/gateway/gateway.py
+
+    environment:
+      MQTT_BROKER_HOST: mosquitto
+      MQTT_BROKER_PORT: "1883"
+
+      MQTT_TOPIC_PREFIX: sanraksha/sensors
+
+      BACKEND_URL: http://backend:8000
+
+      INGEST_TOKEN: ${INGEST_TOKEN:-sanraksha-demo-token}
+
+    depends_on:
+      - backend
+      - mosquitto
+
+    restart: unless-stopped
+
+
+  simulator:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+
+    container_name: sanraksha-simulator
+
+    command: >
+      python /app/iot/simulator/simulate_sensors.py
+      --interval 5
+
+    environment:
+      MQTT_BROKER_HOST: mosquitto
+      MQTT_BROKER_PORT: "1883"
+
+      MQTT_TOPIC_PREFIX: sanraksha/sensors
+
+    depends_on:
+      - mosquitto
+
+    restart: unless-stopped
+
+
+volumes:
+
+  sanraksha_data:
+
+  mqtt_data:
