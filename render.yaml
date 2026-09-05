@@ -26,7 +26,6 @@ services:
   - type: web
     name: sanraksha-frontend
     env: static
-    plan: free
     buildCommand: cd frontend/web-dashboard && npm ci && npm run build
     staticPublishPath: frontend/web-dashboard/dist
     envVars:
