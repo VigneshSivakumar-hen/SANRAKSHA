@@ -71,6 +71,7 @@ def seed_if_empty(db: Session) -> None:
             lat=entry["lat"],
             lon=entry["lon"],
             slope_deg=entry["slope_deg"],
+            imd_district_id=entry.get("imd_district_id"),
         )
         db.add(location)
         db.flush()
@@ -90,7 +91,7 @@ def sync_all_locations(db: Session) -> list[dict]:
     what a scheduled job or the manual /api/sync/run endpoint calls."""
     results = []
     for location in db.query(Location).all():
-        rainfall = imd_service.get_latest_rainfall(location.lat, location.lon)
+        rainfall = imd_service.get_latest_rainfall(location.lat, location.lon, location.imd_district_id)
         soil_moisture = satellite_service.get_latest_soil_moisture(location.lat, location.lon)
         prediction = _run_and_store(
             db,

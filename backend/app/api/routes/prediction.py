@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.limiter import limiter
 from app.schemas import (
     HistoryEntry,
     IngestPayload,
@@ -14,6 +15,14 @@ from app.schemas import (
 from app.services import prediction_service
 
 router = APIRouter(prefix="/api", tags=["prediction"])
+
+
+def require_admin_key(x_admin_key: str = Header(default="")) -> None:
+    """Guard for privileged endpoints (manual sync). If ADMIN_API_KEY isn't
+    set, the check is skipped — convenient for local dev, but always set
+    it in any public deployment."""
+    if settings.ADMIN_API_KEY and x_admin_key != settings.ADMIN_API_KEY:
+        raise HTTPException(status_code=401, detail="Missing or invalid X-Admin-Key header")
 
 
 @router.get("/dashboard", response_model=list[LocationReading])
@@ -29,15 +38,20 @@ def get_history(location_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/predict", response_model=RiskAssessment)
-def predict_risk(reading: ReadingInput):
-    """Run the risk model against a single manually-entered reading (not persisted)."""
+@limiter.limit("20/minute")
+def predict_risk(request: Request, reading: ReadingInput):
+    """Run the risk model against a single manually-entered reading (not persisted).
+    Public demo endpoint — rate-limited per IP to prevent abuse."""
     return prediction_service.assess_custom_reading(reading.model_dump())
 
 
-@router.post("/sync/run", response_model=list[SyncResult])
-def run_sync(db: Session = Depends(get_db)):
+@router.post("/sync/run", response_model=list[SyncResult], dependencies=[Depends(require_admin_key)])
+@limiter.limit("5/hour")
+def run_sync(request: Request, db: Session = Depends(get_db)):
     """Manually trigger an IMD + satellite data pull for every location.
-    In production this is what the background scheduler calls on an interval."""
+    In production this is what the background scheduler calls on an interval.
+    Privileged: requires the X-Admin-Key header when ADMIN_API_KEY is set,
+    since each call fans out to external data sources."""
     return prediction_service.sync_all_locations(db)
 
 

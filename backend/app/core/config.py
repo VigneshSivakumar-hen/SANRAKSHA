@@ -15,8 +15,16 @@ BACKEND_DIR = Path(__file__).resolve().parents[2]
 
 class Settings:
     # --- Database ---
-    DATABASE_URL: str = os.getenv(
+    # SQLAlchemy 2.x requires the "postgresql://" scheme; Render (and some
+    # other providers) hand out connection strings starting "postgres://",
+    # which is the old, now-unsupported alias for the same thing.
+    _raw_database_url: str = os.getenv(
         "DATABASE_URL", f"sqlite:///{BACKEND_DIR / 'data' / 'sanraksha.db'}"
+    )
+    DATABASE_URL: str = (
+        _raw_database_url.replace("postgres://", "postgresql://", 1)
+        if _raw_database_url.startswith("postgres://")
+        else _raw_database_url
     )
 
     # --- IMD (India Meteorological Department) data source ---
@@ -43,6 +51,11 @@ class Settings:
 
     # --- Ingest auth (shared secret the gateway sends, cheap protection for Phase 3) ---
     INGEST_TOKEN: str = os.getenv("INGEST_TOKEN", "dev-ingest-token")
+
+    # --- Admin auth (protects privileged endpoints like manual sync) ---
+    # Empty string = disabled (any request allowed) — fine for local dev,
+    # but ALWAYS set this in production deployments.
+    ADMIN_API_KEY: str = os.getenv("ADMIN_API_KEY", "")
 
 
 settings = Settings()

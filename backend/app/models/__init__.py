@@ -19,6 +19,10 @@ class Location(Base):
     lon = Column(Float, nullable=False)
     slope_deg = Column(Float, nullable=False)
 
+    # Optional: IMD's district-rainfall API is keyed by district ID, not
+    # lat/lon. Only needed when USE_MOCK_IMD=false; leave null otherwise.
+    imd_district_id = Column(String, nullable=True)
+
     readings = relationship("Reading", back_populates="location", cascade="all, delete-orphan")
     predictions = relationship("Prediction", back_populates="location", cascade="all, delete-orphan")
 
