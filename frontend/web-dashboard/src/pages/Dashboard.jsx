@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchDashboard, submitReading } from "../services/api";
+import { submitReading } from "../services/api";
 import RiskCard from "../components/RiskCard";
 import RiskMap from "../components/RiskMap";
 
@@ -12,24 +12,20 @@ const RISK_COLOR = {
 
 const EMPTY_FORM = { rainfall_mm_24h: "", soil_moisture_pct: "", slope_deg: "" };
 
-export default function Dashboard() {
-  const [readings, setReadings] = useState([]);
+export default function Dashboard({ readings, status, hasLoadedOnce }) {
   const [selectedId, setSelectedId] = useState(null);
-  const [status, setStatus] = useState("loading"); // loading | ready | error
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [manualResult, setManualResult] = useState(null);
   const [manualStatus, setManualStatus] = useState("idle"); // idle | loading | error
 
+  // Pick a default selection once data first arrives, without overriding
+  // a selection the person already made on a later poll.
   useEffect(() => {
-    fetchDashboard()
-      .then((data) => {
-        setReadings(data);
-        setSelectedId(data[0]?.location_id ?? null);
-        setStatus("ready");
-      })
-      .catch(() => setStatus("error"));
-  }, []);
+    if (selectedId === null && readings.length > 0) {
+      setSelectedId(readings[0].location_id);
+    }
+  }, [readings, selectedId]);
 
   const selected = readings.find((r) => r.location_id === selectedId);
 
@@ -49,20 +45,21 @@ export default function Dashboard() {
     }
   }
 
-  if (status === "loading") {
-    return <Centered>Loading monitoring data…</Centered>;
+  if (status === "loading" && !hasLoadedOnce) {
+    return <Centered>Fetching the latest readings…</Centered>;
   }
 
-  if (status === "error") {
+  if (status === "error" && readings.length === 0) {
     return (
       <Centered>
-        Couldn't reach the backend at /api. Make sure the FastAPI server is running on port 8000.
+        Can't reach the monitoring API right now. It may be waking up from
+        idle — reload in about a minute.
       </Centered>
     );
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 20, padding: 24 }}>
+    <div className="dashboard-grid reveal-once">
       {/* Left rail: location list */}
       <div>
         <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 500, fontSize: 20, margin: "0 0 12px" }}>
@@ -93,7 +90,7 @@ export default function Dashboard() {
               padding: "18px 20px",
             }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
               <h3 style={{ fontFamily: "var(--font-display)", fontSize: 22, margin: 0 }}>
                 {selected.location_name}, {selected.state}
               </h3>
@@ -178,7 +175,7 @@ export default function Dashboard() {
 
           {manualStatus === "error" && (
             <p style={{ color: "var(--risk-high)", fontSize: 13, marginTop: 10 }}>
-              Couldn't run the assessment. Check that all three fields are filled in.
+              Couldn't run that assessment — fill in all three fields and try again.
             </p>
           )}
 
@@ -235,7 +232,7 @@ function Centered({ children }) {
   return (
     <div
       style={{
-        height: "100vh",
+        height: "calc(100vh - 60px)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

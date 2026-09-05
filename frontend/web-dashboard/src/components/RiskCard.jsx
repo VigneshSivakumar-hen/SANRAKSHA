@@ -10,7 +10,9 @@ export default function RiskCard({ reading, selected, onSelect }) {
 
   return (
     <button
+      className="risk-card"
       onClick={() => onSelect(reading.location_id)}
+      aria-pressed={selected}
       style={{
         display: "block",
         width: "100%",

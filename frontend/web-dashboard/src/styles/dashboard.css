@@ -1,0 +1,110 @@
+/* Layout ------------------------------------------------------------ */
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 20px;
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+@media (max-width: 860px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    padding: 16px;
+    gap: 16px;
+  }
+}
+
+/* Header status pill ------------------------------------------------ */
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.status-dot--live {
+  background: var(--risk-low);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--risk-low) 25%, transparent);
+}
+
+.status-dot--error {
+  background: var(--risk-high);
+}
+
+/* Location cards ------------------------------------------------------ */
+
+.risk-card {
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.risk-card:hover {
+  background: var(--panel-raised);
+}
+
+.risk-card:focus-visible {
+  outline: 2px solid var(--risk-moderate);
+  outline-offset: 2px;
+}
+
+/* Map legend ---------------------------------------------------------- */
+
+.map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 10px 12px 2px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.map-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.map-legend-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* One-time entrance, applied only to the initial dashboard mount ----- */
+
+.reveal-once {
+  animation: revealOnce 420ms ease both;
+}
+
+@keyframes revealOnce {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-once {
+    animation: none;
+  }
+}

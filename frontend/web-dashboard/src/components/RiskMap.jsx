@@ -67,6 +67,15 @@ export default function RiskMap({ readings, selectedId, onSelect }) {
           );
         })}
       </svg>
+
+      <div className="map-legend">
+        {Object.entries(RISK_COLOR).map(([level, color]) => (
+          <span key={level} className="map-legend-item">
+            <span className="map-legend-swatch" style={{ background: color }} />
+            {level}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

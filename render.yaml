@@ -29,6 +29,14 @@ services:
     buildCommand: cd frontend/web-dashboard && npm ci && npm run build
     staticPublishPath: frontend/web-dashboard/dist
     envVars:
+      # IMPORTANT: set this manually in the Render dashboard to the
+      # sanraksha-backend service's PUBLIC url (e.g.
+      # https://sanraksha-backend.onrender.com), then trigger a redeploy.
+      # `fromService`/host wiring can't be used here: it resolves to
+      # Render's internal network address, which the end user's browser
+      # can't reach (static sites are fetched client-side, not
+      # service-to-service).
+      - key: VITE_API_URL
       - key: VITE_API_URL
         fromService:
           type: web
