@@ -33,7 +33,7 @@ services:
         fromService:
           type: web
           name: sanraksha-backend
-          property: host
+          envVarKey: RENDER_EXTERNAL_URL
     routes:
       - type: rewrite
         source: /*
