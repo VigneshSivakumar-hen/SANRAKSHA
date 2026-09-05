@@ -1,4 +1,3 @@
-
 // In local dev, Vite's dev-server proxy (vite.config.js) forwards "/api" to
 // the local backend. In production (a static-site deploy with no proxy),
 // set VITE_API_URL to the deployed backend's URL, e.g.
@@ -29,5 +28,10 @@ export async function submitReading(reading) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(reading),
   });
+  return handle(res);
+}
+
+export async function fetchHistory(locationId) {
+  const res = await fetch(`${BASE_URL}/locations/${locationId}/history`);
   return handle(res);
 }

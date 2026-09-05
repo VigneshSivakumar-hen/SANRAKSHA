@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { submitReading } from "../services/api";
+import { getRegionIdentity } from "../data/regionIdentity";
 import RiskCard from "../components/RiskCard";
-import RiskMap from "../components/RiskMap";
+import IndiaMap from "../components/IndiaMap";
+import SummaryStrip from "../components/SummaryStrip";
+import HistorySparkline from "../components/HistorySparkline";
 
 const RISK_COLOR = {
   LOW: "var(--risk-low)",
@@ -75,57 +78,13 @@ export default function Dashboard({ readings, status, hasLoadedOnce }) {
         ))}
       </div>
 
-      {/* Main area: map, detail panel, manual test tool */}
+      {/* Main area: summary, map, detail panel, manual test tool */}
       <div>
-        <RiskMap readings={readings} selectedId={selectedId} onSelect={setSelectedId} />
+        <SummaryStrip readings={readings} />
 
-        {selected && (
-          <div
-            style={{
-              marginTop: 20,
-              background: "var(--panel)",
-              border: "1px solid var(--line)",
-              borderLeft: `3px solid ${RISK_COLOR[selected.risk_level]}`,
-              borderRadius: 4,
-              padding: "18px 20px",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
-              <h3 style={{ fontFamily: "var(--font-display)", fontSize: 22, margin: 0 }}>
-                {selected.location_name}, {selected.state}
-              </h3>
-              <span
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 14,
-                  color: RISK_COLOR[selected.risk_level],
-                }}
-              >
-                {selected.risk_level} · {selected.risk_score.toFixed(0)}
-              </span>
-            </div>
+        <IndiaMap readings={readings} selectedId={selectedId} onSelect={setSelectedId} />
 
-            <dl style={dlGrid}>
-              <Metric label="Rainfall (24h)" value={`${selected.rainfall_mm_24h} mm`} />
-              <Metric label="Soil moisture" value={`${selected.soil_moisture_pct}%`} />
-              <Metric label="Slope" value={`${selected.slope_deg}°`} />
-            </dl>
-
-            <p style={{ color: "var(--text-muted)", fontSize: 13, margin: "14px 0 4px" }}>
-              Contributing factors
-            </p>
-            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14 }}>
-              {selected.contributing_factors.map((f, i) => (
-                <li key={i}>{f}</li>
-              ))}
-            </ul>
-
-            <p style={{ marginTop: 14, fontSize: 14 }}>
-              <strong style={{ color: RISK_COLOR[selected.risk_level] }}>Recommendation: </strong>
-              {selected.recommendation}
-            </p>
-          </div>
-        )}
+        {selected && <DetailPanel reading={selected} />}
 
         {/* Manual assessment tool — demonstrates the /api/predict endpoint directly */}
         <div
@@ -194,9 +153,87 @@ export default function Dashboard({ readings, status, hasLoadedOnce }) {
   );
 }
 
+function DetailPanel({ reading }) {
+  const color = RISK_COLOR[reading.risk_level] ?? "var(--text-muted)";
+  const { icon: Icon, terrain } = getRegionIdentity(reading.location_id);
+
+  return (
+    <div
+      style={{
+        marginTop: 20,
+        background: "var(--panel)",
+        border: "1px solid var(--line)",
+        borderLeft: `3px solid ${color}`,
+        borderRadius: 4,
+        padding: "20px 22px",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+          <div
+            style={{
+              background: "var(--panel-raised)",
+              border: "1px solid var(--line)",
+              borderRadius: 6,
+              padding: 10,
+              flexShrink: 0,
+            }}
+          >
+            <Icon size={22} color={color} strokeWidth={1.75} />
+          </div>
+          <div>
+            <h3 style={{ fontFamily: "var(--font-display)", fontSize: 24, margin: 0 }}>
+              {reading.location_name}
+            </h3>
+            <p style={{ margin: "2px 0 0", color: "var(--text-muted)", fontSize: 13 }}>
+              {reading.state} · {terrain}
+            </p>
+          </div>
+        </div>
+
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: 32, color, lineHeight: 1 }}>
+            {reading.risk_score.toFixed(0)}
+          </div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color, marginTop: 4 }}>
+            {reading.risk_level}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 32, marginTop: 20 }}>
+        <dl style={dlGrid}>
+          <Metric label="Rainfall (24h)" value={`${reading.rainfall_mm_24h} mm`} />
+          <Metric label="Soil moisture" value={`${reading.soil_moisture_pct}%`} />
+          <Metric label="Slope" value={`${reading.slope_deg}°`} />
+        </dl>
+
+        <div>
+          <p style={{ color: "var(--text-muted)", fontSize: 11, margin: "0 0 6px" }}>Recent risk trend</p>
+          <HistorySparkline locationId={reading.location_id} />
+        </div>
+      </div>
+
+      <p style={{ color: "var(--text-muted)", fontSize: 13, margin: "18px 0 4px" }}>
+        Contributing factors
+      </p>
+      <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14 }}>
+        {reading.contributing_factors.map((f, i) => (
+          <li key={i}>{f}</li>
+        ))}
+      </ul>
+
+      <p style={{ marginTop: 14, fontSize: 14 }}>
+        <strong style={{ color }}>Recommendation: </strong>
+        {reading.recommendation}
+      </p>
+    </div>
+  );
+}
+
 function Metric({ label, value }) {
   return (
-    <div style={{ marginTop: 10 }}>
+    <div>
       <dt style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "none" }}>{label}</dt>
       <dd style={{ margin: 0, fontFamily: "var(--font-mono)", fontSize: 15 }}>{value}</dd>
     </div>
@@ -251,5 +288,4 @@ const dlGrid = {
   display: "grid",
   gridTemplateColumns: "repeat(3, auto)",
   gap: 24,
-  margin: "16px 0 0",
 };
