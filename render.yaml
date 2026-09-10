@@ -17,8 +17,13 @@ services:
           name: sanraksha-db
           property: connectionString
 
+      # Production must not silently turn missing live feeds into simulation.
+      # Configure IMD_API_KEY in Render before relying on IMD rainfall.
       - key: USE_MOCK_IMD
-        value: "true"
+        value: "false"
+
+      - key: USE_MOCK_SATELLITE
+        value: "false"
 
       - key: ENABLE_SCHEDULER
         value: "true"

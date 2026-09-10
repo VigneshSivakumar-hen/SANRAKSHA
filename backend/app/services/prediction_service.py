@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.ml.predictor import RiskFeatures, predict
 from app.models import Location, Prediction, Reading
 from app.services import imd_service, satellite_service
+from app.services.source_errors import DataSourceUnavailable
 
 SAMPLE_DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "sample" / "sample_readings.json"
 
@@ -19,7 +20,7 @@ def _load_sample_locations() -> list[dict]:
 
 
 def _run_and_store(db: Session, location: Location, rainfall_mm_24h: float,
-                    soil_moisture_pct: float, temperature_c: float | None, source: str) -> Prediction:
+                   soil_moisture_pct: float, temperature_c: float | None, source: str) -> Prediction:
     reading = Reading(
         location_id=location.id,
         source=source,
@@ -29,7 +30,7 @@ def _run_and_store(db: Session, location: Location, rainfall_mm_24h: float,
         recorded_at=datetime.utcnow(),
     )
     db.add(reading)
-    db.flush()  # get reading.id without committing yet
+    db.flush()
 
     risk = predict(
         RiskFeatures(
@@ -57,9 +58,7 @@ def _run_and_store(db: Session, location: Location, rainfall_mm_24h: float,
 
 
 def seed_if_empty(db: Session) -> None:
-    """First-run bootstrap: register the sample locations and give each one
-    an initial reading + prediction, so the dashboard isn't empty before
-    the first sync or IoT message arrives."""
+    """Create first-run demo locations and clearly labelled seed readings."""
     if db.query(Location).count() > 0:
         return
 
@@ -86,29 +85,52 @@ def seed_if_empty(db: Session) -> None:
 
 
 def sync_all_locations(db: Session) -> list[dict]:
-    """Pull fresh rainfall (IMD) and soil moisture (satellite) readings for
-    every registered location, run the predictor, and persist both. This is
-    what a scheduled job or the manual /api/sync/run endpoint calls."""
+    """Store fresh readings only when every required provider is available.
+
+    A failed live provider leaves the existing reading intact and returns an
+    explicit unavailable result. This prevents production risk scores from
+    being calculated with silent mock fallback values.
+    """
     results = []
     for location in db.query(Location).all():
-        rainfall = imd_service.get_latest_rainfall(location.lat, location.lon, location.imd_district_id)
-        soil_moisture = satellite_service.get_latest_soil_moisture(location.lat, location.lon)
+        try:
+            rainfall = imd_service.get_latest_rainfall(
+                location.lat, location.lon, location.imd_district_id
+            )
+            soil_moisture = satellite_service.get_latest_soil_moisture(location.lat, location.lon)
+        except DataSourceUnavailable as exc:
+            results.append(
+                {
+                    "location_id": location.id,
+                    "risk_level": None,
+                    "status": "unavailable",
+                    "detail": str(exc),
+                }
+            )
+            continue
+
         prediction = _run_and_store(
             db,
             location,
             rainfall_mm_24h=rainfall.rainfall_mm_24h,
-            soil_moisture_pct=soil_moisture,
+            soil_moisture_pct=soil_moisture.soil_moisture_pct,
             temperature_c=rainfall.temperature_c,
-            source="sync",
+            source=f"{rainfall.source}+{soil_moisture.source}",
         )
-        results.append({"location_id": location.id, "risk_level": prediction.risk_level})
+        results.append(
+            {
+                "location_id": location.id,
+                "risk_level": prediction.risk_level,
+                "status": "updated",
+                "detail": None,
+            }
+        )
     return results
 
 
 def ingest_sensor_reading(db: Session, location_id: str, rainfall_mm_24h: float,
                            soil_moisture_pct: float, temperature_c: float | None) -> dict:
-    """Store a reading pushed by the IoT gateway and run the predictor
-    against it immediately."""
+    """Store a reading pushed by the IoT gateway and run the predictor against it."""
     location = db.query(Location).filter(Location.id == location_id).first()
     if location is None:
         raise ValueError(f"Unknown location_id: {location_id}")
@@ -148,6 +170,7 @@ def get_dashboard_readings(db: Session) -> list[dict]:
                 "rainfall_mm_24h": reading.rainfall_mm_24h if reading else None,
                 "soil_moisture_pct": reading.soil_moisture_pct if reading else None,
                 "temperature_c": reading.temperature_c if reading else None,
+                "source": reading.source if reading else None,
                 "risk_score": prediction.risk_score,
                 "risk_level": prediction.risk_level,
                 "model_used": prediction.model_used,
@@ -185,8 +208,7 @@ def get_location_history(db: Session, location_id: str, limit: int = 50) -> list
 
 
 def assess_custom_reading(payload: dict) -> dict:
-    """Run the predictor against a caller-supplied reading without persisting it
-    (used by the dashboard's manual 'test a reading' form)."""
+    """Run the predictor against a caller-supplied reading without persisting it."""
     features = RiskFeatures(
         rainfall_mm_24h=payload["rainfall_mm_24h"],
         soil_moisture_pct=payload["soil_moisture_pct"],

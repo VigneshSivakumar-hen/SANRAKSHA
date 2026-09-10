@@ -31,6 +31,7 @@ class LocationReading(BaseModel):
     rainfall_mm_24h: Optional[float]
     soil_moisture_pct: Optional[float]
     temperature_c: Optional[float]
+    source: Optional[str]
     risk_score: float
     risk_level: str
     model_used: str
@@ -62,4 +63,6 @@ class IngestPayload(BaseModel):
 
 class SyncResult(BaseModel):
     location_id: str
-    risk_level: str
+    risk_level: Optional[str]
+    status: str
+    detail: Optional[str] = None
