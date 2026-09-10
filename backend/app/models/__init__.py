@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
@@ -39,7 +39,7 @@ class Reading(Base):
     rainfall_mm_24h = Column(Float, nullable=False)
     soil_moisture_pct = Column(Float, nullable=False)
     temperature_c = Column(Float, nullable=True)
-    recorded_at = Column(DateTime, default=datetime.utcnow, index=True)
+    recorded_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
 
     location = relationship("Location", back_populates="readings")
 
@@ -57,6 +57,6 @@ class Prediction(Base):
     model_used = Column(String, nullable=False)  # "trained" | "rule_based"
     contributing_factors = Column(String, nullable=False)  # JSON-encoded list
     recommendation = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
 
     location = relationship("Location", back_populates="predictions")

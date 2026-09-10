@@ -1,46 +1,119 @@
 databases:
+  # Managed PostgreSQL database.
+  # This keeps application data separate from the ephemeral web-service
+  # filesystem.
   - name: sanraksha-db
     plan: free
 
 services:
-  # FastAPI backend
+  # ============================================================
+  # SANRAKSHA BACKEND
+  # ============================================================
+  #
+  # FastAPI backend running in Docker.
+  #
+  # Production environmental-data policy:
+  #
+  #   USE_MOCK_IMD=false
+  #   ALLOW_MOCK_FALLBACK=false
+  #
+  # Therefore, real-provider failures are reported instead of silently
+  # replacing environmental data with simulated values.
+  #
   - type: web
     name: sanraksha-backend
     env: docker
     plan: free
+
     dockerfilePath: ./Dockerfile.backend
     dockerContext: .
+
     healthCheckPath: /health
+
     envVars:
+      # --------------------------------------------------------
+      # Database
+      # --------------------------------------------------------
       - key: DATABASE_URL
         fromDatabase:
           name: sanraksha-db
           property: connectionString
 
+      # --------------------------------------------------------
+      # Environmental data
+      # --------------------------------------------------------
+      #
+      # Production uses real providers.
       - key: USE_MOCK_IMD
-        value: "true"
+        value: "false"
 
+      # Never silently substitute mock environmental data in production.
+      - key: ALLOW_MOCK_FALLBACK
+        value: "false"
+
+      # NASA POWER public API.
+      - key: NASA_POWER_BASE_URL
+        value: "https://power.larc.nasa.gov/api"
+
+      # Optional IMD configuration.
+      #
+      # Leave IMD_API_KEY out unless a valid key is actually available.
+      # NASA POWER remains the primary public provider.
+
+      # --------------------------------------------------------
+      # Background synchronization
+      # --------------------------------------------------------
       - key: ENABLE_SCHEDULER
         value: "true"
 
       - key: SYNC_INTERVAL_MINUTES
         value: "30"
 
+      # --------------------------------------------------------
+      # Authentication
+      # --------------------------------------------------------
+      #
+      # Render generates secure random values for these variables.
       - key: INGEST_TOKEN
         generateValue: true
 
       - key: ADMIN_API_KEY
         generateValue: true
 
-  # React dashboard
+      # --------------------------------------------------------
+      # CORS
+      # --------------------------------------------------------
+      #
+      # The browser accesses the backend through its public URL.
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://sanraksha-frontend.onrender.com"
+
+  # ============================================================
+  # SANRAKSHA FRONTEND
+  # ============================================================
+  #
+  # React + Vite dashboard deployed as a Render static site.
+  #
+  # Current Render Blueprint syntax:
+  #   type: web
+  #   runtime: static
+  #
   - type: web
+    runtime: static
     name: sanraksha-frontend
-    env: static
+
     buildCommand: cd frontend/web-dashboard && npm ci && npm run build
+
     staticPublishPath: frontend/web-dashboard/dist
+
+    # Vite embeds VITE_API_URL into the production JavaScript bundle
+    # during npm run build.
     envVars:
       - key: VITE_API_URL
-        value: https://sanraksha-backend.onrender.com
+        value: "https://sanraksha-backend.onrender.com"
+
+    # React/Vite SPA fallback.
+    # Allows routes such as /dashboard to load correctly when refreshed.
     routes:
       - type: rewrite
         source: /*

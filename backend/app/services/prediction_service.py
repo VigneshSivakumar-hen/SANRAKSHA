@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -26,7 +26,7 @@ def _run_and_store(db: Session, location: Location, rainfall_mm_24h: float,
         rainfall_mm_24h=rainfall_mm_24h,
         soil_moisture_pct=soil_moisture_pct,
         temperature_c=temperature_c,
-        recorded_at=datetime.utcnow(),
+        recorded_at=datetime.now(timezone.utc),
     )
     db.add(reading)
     db.flush()  # get reading.id without committing yet
@@ -48,7 +48,7 @@ def _run_and_store(db: Session, location: Location, rainfall_mm_24h: float,
         model_used=risk.model_used,
         contributing_factors=json.dumps(risk.contributing_factors),
         recommendation=risk.recommendation,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
     db.add(prediction)
     db.commit()

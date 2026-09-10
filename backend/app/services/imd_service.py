@@ -1,33 +1,31 @@
 """
-IMD (India Meteorological Department) rainfall data adapter.
+Rainfall data adapter.
 
-Real deployments should call the actual IMD API here (set USE_MOCK_IMD=false
-and IMD_API_KEY / district IDs in the environment / database). This module
-exposes a single stable function, `get_latest_rainfall(lat, lon, district_id)`,
-so the rest of the app never has to know whether it's talking to the real
-service or the mock.
+Production mode (USE_MOCK_IMD=false) uses real environmental data providers:
 
---- IMPORTANT: read before flipping USE_MOCK_IMD off ---
+1. NASA POWER — primary provider
+   - Public and keyless
+   - Provides MERRA-2/reanalysis-derived environmental data
+   - Works for arbitrary latitude/longitude
 
-IMD's district-wise rainfall API (documented at
-https://mausam.imd.gov.in/responsive/api_reference.html, endpoint shape
-`https://api.imd.gov.in/api/v1/districtrainfall?id=<district_id>`) is what
-`_fetch_real()` below targets. Two things to know:
+2. IMD district rainfall API — optional secondary provider
+   - Used when a district_id is available
+   - Requires appropriate IMD access/configuration
 
-1. It's keyed by IMD's own district ID, not lat/lon. Each Location needs
-   its `imd_district_id` set (look yours up from IMD's district map/API
-   reference) — locations without one are skipped and fall back to mock.
-2. This integration is unverified from this environment: I don't have
-   registered IMD API credentials to test against, and a direct request to
-   a sibling endpoint returned 401 during development, suggesting some
-   endpoints need an access request/token IMD doesn't fully document
-   publicly. Treat `_fetch_real()` as a solid starting point, not a proven
-   integration — test it with your own credentials, check the response
-   shape actually matches `_parse_response()` below, and adjust as needed.
+Mock data is used only when:
+    USE_MOCK_IMD=true
 
-The mock provider returns plausible, gently time-varying rainfall so the
-sync loop and dashboard have something realistic to show without any of
-the above.
+or, when a real provider fails:
+
+    ALLOW_MOCK_FALLBACK=true
+
+Production deployments should use:
+
+    USE_MOCK_IMD=false
+    ALLOW_MOCK_FALLBACK=false
+
+With mock fallback disabled, real provider failures raise an error
+instead of silently presenting simulated environmental data as real data.
 """
 
 import logging
@@ -38,6 +36,7 @@ from dataclasses import dataclass
 import requests
 
 from app.core.config import settings
+from app.services import nasa_power_service
 
 logger = logging.getLogger(__name__)
 
@@ -46,64 +45,216 @@ logger = logging.getLogger(__name__)
 class RainfallReading:
     rainfall_mm_24h: float
     temperature_c: float
-    source: str  # "imd" | "imd_mock"
+    source: str  # "nasa_power" | "imd" | "imd_mock"
 
 
-def _parse_response(data: dict) -> RainfallReading:
-    """Pull rainfall/temperature out of IMD's JSON. Field names are the
-    documented shape at time of writing — verify against a live response
-    before relying on this, since IMD does not publish a formal schema."""
-    rainfall = data.get("rainfall_mm_24h", data.get("rainfall"))
+def _fetch_imd_district(district_id: str) -> RainfallReading:
+    """
+    Fetch rainfall from the optional IMD district-rainfall endpoint.
+
+    This is a secondary provider. The endpoint requires a valid district
+    identifier and may require appropriate IMD API access.
+    """
+
+    params = {"id": district_id}
+
+    if settings.IMD_API_KEY:
+        params["api_key"] = settings.IMD_API_KEY
+
+    resp = requests.get(
+        f"{settings.IMD_API_BASE_URL}/districtrainfall",
+        params=params,
+        timeout=10,
+    )
+
+    resp.raise_for_status()
+
+    data = resp.json()
+
+    rainfall = data.get(
+        "rainfall_mm_24h",
+        data.get("rainfall"),
+    )
+
     if rainfall is None:
-        raise ValueError(f"Unrecognized IMD response shape: {data!r}")
+        raise ValueError(
+            f"Unrecognized IMD response shape: {data!r}"
+        )
+
+    temperature = data.get(
+        "temperature_c",
+        data.get("temperature", 20.0),
+    )
+
     return RainfallReading(
         rainfall_mm_24h=float(rainfall),
-        temperature_c=float(data.get("temperature_c", data.get("temperature", 20.0))),
+        temperature_c=float(temperature),
         source="imd",
     )
 
 
-def _fetch_real(district_id: str) -> RainfallReading:
-    resp = requests.get(
-        f"{settings.IMD_API_BASE_URL}/districtrainfall",
-        params={"id": district_id, "api_key": settings.IMD_API_KEY} if settings.IMD_API_KEY else {"id": district_id},
-        timeout=10,
-    )
-    resp.raise_for_status()
-    return _parse_response(resp.json())
-
-
 def _fetch_mock(lat: float, lon: float) -> RainfallReading:
-    """Deterministic-but-time-varying mock: a slow sine wave (day/night +
-    weather-system drift) plus location-seeded pseudo-randomness, so
-    repeated calls for the same location move gradually instead of
-    jumping around, and different locations look different from each
-    other."""
+    """
+    Generate deterministic but time-varying simulated rainfall.
+
+    This function is intended only for local development, demonstrations,
+    testing, or explicitly enabled mock fallback operation.
+    """
+
     seed = int((lat * 1000 + lon * 1000)) % 97
-    t = time.time() / 3600  # hours, monotonic driver for the wave
+
+    # Hours used as a slowly changing weather-system driver.
+    t = time.time() / 3600
 
     base = 15 + seed % 40
-    wave = 60 * max(0, math.sin(t / 6 + seed))
-    rainfall = round(max(0.0, base + wave), 1)
 
-    temperature = round(22 - (lat - 10) * 0.35 + 3 * math.sin(t / 12 + seed), 1)
+    wave = 60 * max(
+        0,
+        math.sin(t / 6 + seed),
+    )
 
-    return RainfallReading(rainfall_mm_24h=rainfall, temperature_c=temperature, source="imd_mock")
+    rainfall = round(
+        max(0.0, base + wave),
+        1,
+    )
+
+    temperature = round(
+        22
+        - (lat - 10) * 0.35
+        + 3 * math.sin(t / 12 + seed),
+        1,
+    )
+
+    return RainfallReading(
+        rainfall_mm_24h=rainfall,
+        temperature_c=temperature,
+        source="imd_mock",
+    )
 
 
-def get_latest_rainfall(lat: float, lon: float, district_id: str | None = None) -> RainfallReading:
+def get_latest_rainfall(
+    lat: float,
+    lon: float,
+    district_id: str | None = None,
+) -> RainfallReading:
+    """
+    Return the latest rainfall reading for a location.
+
+    Provider order in production:
+        NASA POWER -> IMD district API -> optional mock fallback
+
+    Behavior:
+
+        USE_MOCK_IMD=true
+            -> explicit mock mode
+
+        USE_MOCK_IMD=false
+            -> attempt real providers
+
+        Real providers fail and ALLOW_MOCK_FALLBACK=true
+            -> use mock data
+
+        Real providers fail and ALLOW_MOCK_FALLBACK=false
+            -> raise RuntimeError
+
+    The final behavior prevents production from silently displaying
+    simulated environmental data.
+    """
+
+    # ---------------------------------------------------------
+    # Explicit mock mode
+    # ---------------------------------------------------------
     if settings.USE_MOCK_IMD:
-        return _fetch_mock(lat, lon)
-
-    if not district_id:
-        logger.warning(
-            "USE_MOCK_IMD is false but this location has no imd_district_id set; "
-            "falling back to mock data for it."
+        logger.info(
+            "Using explicitly enabled mock rainfall data for (%s, %s).",
+            lat,
+            lon,
         )
+
         return _fetch_mock(lat, lon)
 
+    provider_errors: list[str] = []
+
+    # ---------------------------------------------------------
+    # Primary provider: NASA POWER
+    # ---------------------------------------------------------
     try:
-        return _fetch_real(district_id)
+        env = nasa_power_service.fetch(lat, lon)
+
+        logger.info(
+            "Rainfall obtained from NASA POWER for (%s, %s).",
+            lat,
+            lon,
+        )
+
+        return RainfallReading(
+            rainfall_mm_24h=env.rainfall_mm_24h,
+            temperature_c=env.temperature_c,
+            source=env.source,
+        )
+
     except Exception as exc:  # noqa: BLE001
-        logger.warning("IMD API call failed (%s); falling back to mock data.", exc)
+        message = f"NASA POWER: {exc}"
+        provider_errors.append(message)
+
+        logger.warning(
+            "NASA POWER rainfall fetch failed for (%s, %s): %s",
+            lat,
+            lon,
+            exc,
+        )
+
+    # ---------------------------------------------------------
+    # Secondary provider: IMD district rainfall
+    # ---------------------------------------------------------
+    if district_id:
+        try:
+            reading = _fetch_imd_district(district_id)
+
+            logger.info(
+                "Rainfall obtained from IMD for district %s.",
+                district_id,
+            )
+
+            return reading
+
+        except Exception as exc:  # noqa: BLE001
+            message = f"IMD district API: {exc}"
+            provider_errors.append(message)
+
+            logger.warning(
+                "IMD district rainfall fetch failed for district %s: %s",
+                district_id,
+                exc,
+            )
+
+    # ---------------------------------------------------------
+    # Optional mock fallback
+    # ---------------------------------------------------------
+    if settings.ALLOW_MOCK_FALLBACK:
+        logger.warning(
+            "All real rainfall providers failed for (%s, %s). "
+            "ALLOW_MOCK_FALLBACK=true, so simulated rainfall will be used.",
+            lat,
+            lon,
+        )
+
         return _fetch_mock(lat, lon)
+
+    # ---------------------------------------------------------
+    # Production-safe failure
+    # ---------------------------------------------------------
+    details = "; ".join(provider_errors)
+
+    logger.error(
+        "All real rainfall providers failed for (%s, %s), "
+        "and mock fallback is disabled. Errors: %s",
+        lat,
+        lon,
+        details,
+    )
+
+    raise RuntimeError(
+        f"No real rainfall data available for ({lat}, {lon}). "
+        f"Mock fallback is disabled. Provider errors: {details}"
+    )
