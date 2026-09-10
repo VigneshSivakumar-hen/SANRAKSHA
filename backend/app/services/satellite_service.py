@@ -1,18 +1,24 @@
 """
 Satellite-derived soil moisture adapter.
 
-In a real deployment this would call a satellite soil-moisture product
-(e.g. ISRO Bhuvan, NASA SMAP) for the given coordinates. Like
-imd_service.py, this exposes one stable function and defaults to a
-realistic mock so the sync pipeline runs without external network access;
-flip USE_MOCK_IMD off and implement `_fetch_real()` against your actual
-provider when you have access.
+Real deployments (USE_MOCK_IMD=false) get this from NASA's POWER API —
+specifically GWETTOP (top-layer soil wetness from NASA's MERRA-2
+reanalysis, which assimilates satellite observations). See
+nasa_power_service.py for the shared fetch/cache logic — it's the same
+underlying call imd_service.py uses for rainfall, so syncing a location
+only hits the API once, not twice.
+
+Falls back to a realistic mock on any failure, same as imd_service.py.
 """
 
+import logging
 import math
 import time
 
 from app.core.config import settings
+from app.services import nasa_power_service
+
+logger = logging.getLogger(__name__)
 
 
 def _fetch_mock(lat: float, lon: float) -> float:
@@ -23,16 +29,11 @@ def _fetch_mock(lat: float, lon: float) -> float:
     return round(min(100.0, max(5.0, base + wave)), 1)
 
 
-def _fetch_real(lat: float, lon: float) -> float:
-    raise NotImplementedError(
-        "Wire this up to your satellite soil-moisture provider (e.g. ISRO Bhuvan, NASA SMAP)."
-    )
-
-
 def get_latest_soil_moisture(lat: float, lon: float) -> float:
     if settings.USE_MOCK_IMD:
         return _fetch_mock(lat, lon)
     try:
-        return _fetch_real(lat, lon)
-    except NotImplementedError:
+        return nasa_power_service.fetch(lat, lon).soil_moisture_pct
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("NASA POWER soil-moisture fetch failed (%s); falling back to mock.", exc)
         return _fetch_mock(lat, lon)

@@ -54,7 +54,12 @@ export default function App() {
         </span>
         <StatusIndicator status={status} lastUpdated={lastUpdated} />
       </header>
-      <Dashboard readings={readings} status={status} hasLoadedOnce={hasLoadedOnce.current} />
+      <Dashboard
+        readings={readings}
+        status={status}
+        hasLoadedOnce={hasLoadedOnce.current}
+        refreshKey={lastUpdated ? lastUpdated.getTime() : 0}
+      />
     </div>
   );
 }

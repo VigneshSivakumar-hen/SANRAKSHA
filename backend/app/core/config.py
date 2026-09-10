@@ -35,6 +35,11 @@ class Settings:
     IMD_API_BASE_URL: str = os.getenv("IMD_API_BASE_URL", "https://mausam.imd.gov.in/api")
     IMD_API_KEY: str = os.getenv("IMD_API_KEY", "")
 
+    # Primary real-data provider when USE_MOCK_IMD=false: NASA's public,
+    # keyless POWER API (satellite/reanalysis-derived rainfall + soil
+    # moisture). See app/services/nasa_power_service.py.
+    NASA_POWER_BASE_URL: str = os.getenv("NASA_POWER_BASE_URL", "https://power.larc.nasa.gov/api")
+
     # --- ML model ---
     TRAINED_MODEL_PATH: str = os.getenv(
         "TRAINED_MODEL_PATH", str(BACKEND_DIR.parent / "ml" / "models" / "landslide_model.pkl")
@@ -51,6 +56,12 @@ class Settings:
 
     # --- Ingest auth (shared secret the gateway sends, cheap protection for Phase 3) ---
     INGEST_TOKEN: str = os.getenv("INGEST_TOKEN", "dev-ingest-token")
+
+    # --- CORS ---
+    # Comma-separated list of allowed origins, e.g.
+    # "https://sanraksha-frontend.onrender.com,http://localhost:5173".
+    # Defaults to "*" (any origin) for easy local dev / first deploy.
+    CORS_ALLOWED_ORIGINS: str = os.getenv("CORS_ALLOWED_ORIGINS", "*")
 
     # --- Admin auth (protects privileged endpoints like manual sync) ---
     # Empty string = disabled (any request allowed) — fine for local dev,

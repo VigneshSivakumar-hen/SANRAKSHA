@@ -1,9 +1,13 @@
 databases:
+  # Free managed Postgres so data survives redeploys (SQLite on the free
+  # web service's disk does NOT persist between deploys/restarts).
   - name: sanraksha-db
     plan: free
 
 services:
-  # FastAPI backend
+  # FastAPI backend — runs standalone with mock IMD data + the ML risk
+  # model. MQTT/IoT gateway/simulator stay local-only (docker-compose);
+  # they're not needed for the public dashboard to work.
   - type: web
     name: sanraksha-backend
     env: docker
@@ -16,31 +20,36 @@ services:
         fromDatabase:
           name: sanraksha-db
           property: connectionString
-
       - key: USE_MOCK_IMD
-        value: "true"
-
+        value: "false"
       - key: ENABLE_SCHEDULER
         value: "true"
-
       - key: SYNC_INTERVAL_MINUTES
         value: "30"
-
       - key: INGEST_TOKEN
         generateValue: true
-
       - key: ADMIN_API_KEY
         generateValue: true
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://sanraksha-frontend.onrender.com
 
-  # React dashboard
+  # React dashboard, built and served as a static site (free, no cold
+  # starts). VITE_API_URL is wired automatically to the backend above.
   - type: web
     name: sanraksha-frontend
     env: static
     buildCommand: cd frontend/web-dashboard && npm ci && npm run build
     staticPublishPath: frontend/web-dashboard/dist
     envVars:
+      # IMPORTANT: set this manually in the Render dashboard to the
+      # sanraksha-backend service's PUBLIC url (e.g.
+      # https://sanraksha-backend.onrender.com), then trigger a redeploy.
+      # `fromService`/host wiring can't be used here: it resolves to
+      # Render's internal network address, which the end user's browser
+      # can't reach (static sites are fetched client-side, not
+      # service-to-service).
       - key: VITE_API_URL
-        value: https://sanraksha-backend.onrender.com
+        value: ""
     routes:
       - type: rewrite
         source: /*

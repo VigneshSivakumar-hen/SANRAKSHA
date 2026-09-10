@@ -3,7 +3,9 @@ import { submitReading } from "../services/api";
 import { getRegionIdentity } from "../data/regionIdentity";
 import RiskCard from "../components/RiskCard";
 import IndiaMap from "../components/IndiaMap";
-import SummaryStrip from "../components/SummaryStrip";
+import RiskRings from "../components/RiskRings";
+import StateDistribution from "../components/StateDistribution";
+import ActivityFeed from "../components/ActivityFeed";
 import HistorySparkline from "../components/HistorySparkline";
 
 const RISK_COLOR = {
@@ -15,7 +17,7 @@ const RISK_COLOR = {
 
 const EMPTY_FORM = { rainfall_mm_24h: "", soil_moisture_pct: "", slope_deg: "" };
 
-export default function Dashboard({ readings, status, hasLoadedOnce }) {
+export default function Dashboard({ readings, status, hasLoadedOnce, refreshKey }) {
   const [selectedId, setSelectedId] = useState(null);
 
   const [form, setForm] = useState(EMPTY_FORM);
@@ -63,7 +65,7 @@ export default function Dashboard({ readings, status, hasLoadedOnce }) {
 
   return (
     <div className="dashboard-grid reveal-once">
-      {/* Left rail: location list */}
+      {/* Left: location list + state breakdown */}
       <div>
         <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 500, fontSize: 20, margin: "0 0 12px" }}>
           Monitored locations
@@ -76,78 +78,94 @@ export default function Dashboard({ readings, status, hasLoadedOnce }) {
             onSelect={setSelectedId}
           />
         ))}
+        <StateDistribution readings={readings} />
       </div>
 
-      {/* Main area: summary, map, detail panel, manual test tool */}
+      {/* Center: risk overview, map, detail panel */}
       <div>
-        <SummaryStrip readings={readings} />
+        <div
+          style={{
+            background: "var(--panel)",
+            border: "1px solid var(--line)",
+            borderRadius: 4,
+            padding: "16px 20px",
+            marginBottom: 20,
+          }}
+        >
+          <RiskRings readings={readings} />
+        </div>
 
         <IndiaMap readings={readings} selectedId={selectedId} onSelect={setSelectedId} />
 
         {selected && <DetailPanel reading={selected} />}
+      </div>
 
-        {/* Manual assessment tool — demonstrates the /api/predict endpoint directly */}
-        <div
-          style={{
-            marginTop: 20,
-            background: "var(--panel)",
-            border: "1px solid var(--line)",
-            borderRadius: 4,
-            padding: "18px 20px",
-          }}
-        >
-          <h3 style={{ fontFamily: "var(--font-display)", fontSize: 18, margin: "0 0 12px" }}>
-            Test a manual reading
-          </h3>
-          <form onSubmit={handleManualSubmit} style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "end" }}>
-            <Field
-              label="Rainfall 24h (mm)"
-              value={form.rainfall_mm_24h}
-              onChange={(v) => setForm({ ...form, rainfall_mm_24h: v })}
-            />
-            <Field
-              label="Soil moisture (%)"
-              value={form.soil_moisture_pct}
-              onChange={(v) => setForm({ ...form, soil_moisture_pct: v })}
-            />
-            <Field
-              label="Slope (°)"
-              value={form.slope_deg}
-              onChange={(v) => setForm({ ...form, slope_deg: v })}
-            />
-            <button
-              type="submit"
-              disabled={manualStatus === "loading"}
-              style={{
-                background: "var(--panel-raised)",
-                border: "1px solid var(--line)",
-                borderRadius: 4,
-                color: "var(--text)",
-                padding: "8px 16px",
-                cursor: "pointer",
-                height: 38,
-              }}
-            >
-              {manualStatus === "loading" ? "Assessing…" : "Assess risk"}
-            </button>
-          </form>
+      {/* Right: live activity feed across all locations */}
+      <div className="command-feed">
+        <ActivityFeed readings={readings} refreshKey={refreshKey} onSelect={setSelectedId} />
+      </div>
 
-          {manualStatus === "error" && (
-            <p style={{ color: "var(--risk-high)", fontSize: 13, marginTop: 10 }}>
-              Couldn't run that assessment — fill in all three fields and try again.
-            </p>
-          )}
+      {/* Manual assessment tool — demonstrates the /api/predict endpoint directly */}
+      <div
+        className="command-tools"
+        style={{
+          background: "var(--panel)",
+          border: "1px solid var(--line)",
+          borderRadius: 4,
+          padding: "18px 20px",
+        }}
+      >
+        <h3 style={{ fontFamily: "var(--font-display)", fontSize: 18, margin: "0 0 12px" }}>
+          Test a manual reading
+        </h3>
+        <form onSubmit={handleManualSubmit} style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "end" }}>
+          <Field
+            label="Rainfall 24h (mm)"
+            value={form.rainfall_mm_24h}
+            onChange={(v) => setForm({ ...form, rainfall_mm_24h: v })}
+          />
+          <Field
+            label="Soil moisture (%)"
+            value={form.soil_moisture_pct}
+            onChange={(v) => setForm({ ...form, soil_moisture_pct: v })}
+          />
+          <Field
+            label="Slope (°)"
+            value={form.slope_deg}
+            onChange={(v) => setForm({ ...form, slope_deg: v })}
+          />
+          <button
+            type="submit"
+            disabled={manualStatus === "loading"}
+            style={{
+              background: "var(--panel-raised)",
+              border: "1px solid var(--line)",
+              borderRadius: 4,
+              color: "var(--text)",
+              padding: "8px 16px",
+              cursor: "pointer",
+              height: 38,
+            }}
+          >
+            {manualStatus === "loading" ? "Assessing…" : "Assess risk"}
+          </button>
+        </form>
 
-          {manualResult && (
-            <p style={{ marginTop: 14, fontSize: 14 }}>
-              <span style={{ fontFamily: "var(--font-mono)", color: RISK_COLOR[manualResult.risk_level] }}>
-                {manualResult.risk_level} · {manualResult.risk_score.toFixed(0)}
-              </span>
-              {" — "}
-              {manualResult.recommendation}
-            </p>
-          )}
-        </div>
+        {manualStatus === "error" && (
+          <p style={{ color: "var(--risk-high)", fontSize: 13, marginTop: 10 }}>
+            Couldn't run that assessment — fill in all three fields and try again.
+          </p>
+        )}
+
+        {manualResult && (
+          <p style={{ marginTop: 14, fontSize: 14 }}>
+            <span style={{ fontFamily: "var(--font-mono)", color: RISK_COLOR[manualResult.risk_level] }}>
+              {manualResult.risk_level} · {manualResult.risk_score.toFixed(0)}
+            </span>
+            {" — "}
+            {manualResult.recommendation}
+          </p>
+        )}
       </div>
     </div>
   );
