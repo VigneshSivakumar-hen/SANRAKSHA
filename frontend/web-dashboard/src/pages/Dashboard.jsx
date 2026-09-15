@@ -1,16 +1,16 @@
+import { useEffect, useState } from "react";
 
-import { lazy, Suspense, useEffect, useState } from "react";
 import { submitReading } from "../services/api";
 import { getRegionIdentity } from "../data/regionIdentity";
+
 import RiskCard from "../components/RiskCard";
 import IndiaMap from "../components/IndiaMap";
+import SatelliteMap from "../components/SatelliteMap";
 import MapViewToggle from "../components/MapViewToggle";
 import RiskRings from "../components/RiskRings";
 import StateDistribution from "../components/StateDistribution";
 import ActivityFeed from "../components/ActivityFeed";
 import HistorySparkline from "../components/HistorySparkline";
-
-const SatelliteMap = lazy(() => import("../components/SatelliteMap"));
 
 const RISK_COLOR = {
   LOW: "var(--risk-low)",
@@ -26,30 +26,36 @@ const EMPTY_FORM = {
 };
 
 export default function Dashboard({
-  readings,
+  readings = [],
   status,
   hasLoadedOnce,
   refreshKey,
 }) {
   const [selectedId, setSelectedId] = useState(null);
+
+  // Satellite is the default map view.
   const [mapView, setMapView] = useState("satellite");
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [manualResult, setManualResult] = useState(null);
   const [manualStatus, setManualStatus] = useState("idle");
 
-  // Pick a default selection once data first arrives
+  // Select the first monitored location when data arrives.
   useEffect(() => {
     if (selectedId === null && readings.length > 0) {
       setSelectedId(readings[0].location_id);
     }
   }, [readings, selectedId]);
 
-  const selected = readings.find((r) => r.location_id === selectedId);
+  const selected = readings.find(
+    (r) => r.location_id === selectedId
+  );
 
   async function handleManualSubmit(e) {
     e.preventDefault();
+
     setManualStatus("loading");
+    setManualResult(null);
 
     try {
       const result = await submitReading({
@@ -60,15 +66,26 @@ export default function Dashboard({
 
       setManualResult(result);
       setManualStatus("idle");
-    } catch {
+    } catch (error) {
+      console.error("Manual risk assessment failed:", error);
       setManualStatus("error");
     }
   }
 
+  /*
+   * Initial loading state.
+   */
   if (status === "loading" && !hasLoadedOnce) {
-    return <Centered>Fetching the latest readings…</Centered>;
+    return (
+      <Centered>
+        Fetching the latest readings…
+      </Centered>
+    );
   }
 
+  /*
+   * API error with no previously loaded data.
+   */
   if (status === "error" && readings.length === 0) {
     return (
       <Centered>
@@ -80,8 +97,13 @@ export default function Dashboard({
 
   return (
     <div className="dashboard-grid reveal-once">
-      {/* Left: location list + state breakdown */}
+
+      {/* ============================================================
+          LEFT COLUMN
+          ============================================================ */}
+
       <div>
+
         <h2
           style={{
             fontFamily: "var(--font-display)",
@@ -93,20 +115,42 @@ export default function Dashboard({
           Monitored locations
         </h2>
 
-        {readings.map((r) => (
-          <RiskCard
-            key={r.location_id}
-            reading={r}
-            selected={r.location_id === selectedId}
-            onSelect={setSelectedId}
-          />
-        ))}
+        {readings.length > 0 ? (
+          readings.map((r) => (
+            <RiskCard
+              key={r.location_id}
+              reading={r}
+              selected={r.location_id === selectedId}
+              onSelect={setSelectedId}
+            />
+          ))
+        ) : (
+          <div
+            style={{
+              background: "var(--panel)",
+              border: "1px solid var(--line)",
+              borderRadius: 4,
+              padding: 18,
+              color: "var(--text-muted)",
+              fontSize: 13,
+            }}
+          >
+            No monitoring readings available.
+          </div>
+        )}
 
         <StateDistribution readings={readings} />
+
       </div>
 
-      {/* Center: risk overview, map, detail panel */}
+
+      {/* ============================================================
+          CENTER COLUMN
+          ============================================================ */}
+
       <div>
+
+        {/* Risk summary */}
         <div
           style={{
             background: "var(--panel)",
@@ -119,20 +163,27 @@ export default function Dashboard({
           <RiskRings readings={readings} />
         </div>
 
-        {/* Satellite / Schematic map toggle */}
+
+        {/* ========================================================
+            MAP VIEW TOGGLE
+            ======================================================== */}
+
         <MapViewToggle
           value={mapView}
           onChange={setMapView}
         />
 
+
+        {/* ========================================================
+            MAP
+            ======================================================== */}
+
         {mapView === "satellite" ? (
-          <Suspense fallback={<MapLoadingPlaceholder />}>
-            <SatelliteMap
-              readings={readings}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-            />
-          </Suspense>
+          <SatelliteMap
+            readings={readings}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+          />
         ) : (
           <IndiaMap
             readings={readings}
@@ -141,19 +192,35 @@ export default function Dashboard({
           />
         )}
 
-        {selected && <DetailPanel reading={selected} />}
+
+        {/* Selected location details */}
+
+        {selected && (
+          <DetailPanel reading={selected} />
+        )}
+
       </div>
 
-      {/* Right: live activity feed */}
+
+      {/* ============================================================
+          RIGHT COLUMN
+          ============================================================ */}
+
       <div className="command-feed">
+
         <ActivityFeed
           readings={readings}
           refreshKey={refreshKey}
           onSelect={setSelectedId}
         />
+
       </div>
 
-      {/* Manual assessment tool */}
+
+      {/* ============================================================
+          MANUAL RISK ASSESSMENT
+          ============================================================ */}
+
       <div
         className="command-tools"
         style={{
@@ -163,6 +230,7 @@ export default function Dashboard({
           padding: "18px 20px",
         }}
       >
+
         <h3
           style={{
             fontFamily: "var(--font-display)",
@@ -173,6 +241,7 @@ export default function Dashboard({
           Test a manual reading
         </h3>
 
+
         <form
           onSubmit={handleManualSubmit}
           style={{
@@ -182,38 +251,42 @@ export default function Dashboard({
             alignItems: "end",
           }}
         >
+
           <Field
             label="Rainfall 24h (mm)"
             value={form.rainfall_mm_24h}
-            onChange={(v) =>
+            onChange={(value) =>
               setForm({
                 ...form,
-                rainfall_mm_24h: v,
+                rainfall_mm_24h: value,
               })
             }
           />
+
 
           <Field
             label="Soil moisture (%)"
             value={form.soil_moisture_pct}
-            onChange={(v) =>
+            onChange={(value) =>
               setForm({
                 ...form,
-                soil_moisture_pct: v,
+                soil_moisture_pct: value,
               })
             }
           />
 
+
           <Field
             label="Slope (°)"
             value={form.slope_deg}
-            onChange={(v) =>
+            onChange={(value) =>
               setForm({
                 ...form,
-                slope_deg: v,
+                slope_deg: value,
               })
             }
           />
+
 
           <button
             type="submit"
@@ -224,15 +297,26 @@ export default function Dashboard({
               borderRadius: 4,
               color: "var(--text)",
               padding: "8px 16px",
-              cursor: "pointer",
+              cursor:
+                manualStatus === "loading"
+                  ? "not-allowed"
+                  : "pointer",
               height: 38,
+              opacity:
+                manualStatus === "loading"
+                  ? 0.6
+                  : 1,
             }}
           >
             {manualStatus === "loading"
               ? "Assessing…"
               : "Assess risk"}
           </button>
+
         </form>
+
+
+        {/* Manual assessment error */}
 
         {manualStatus === "error" && (
           <p
@@ -247,16 +331,26 @@ export default function Dashboard({
           </p>
         )}
 
+
+        {/* Manual assessment result */}
+
         {manualResult && (
-          <p style={{ marginTop: 14, fontSize: 14 }}>
+          <p
+            style={{
+              marginTop: 14,
+              fontSize: 14,
+            }}
+          >
             <span
               style={{
                 fontFamily: "var(--font-mono)",
-                color: RISK_COLOR[manualResult.risk_level],
+                color:
+                  RISK_COLOR[manualResult.risk_level] ??
+                  "var(--text)",
               }}
             >
               {manualResult.risk_level} ·{" "}
-              {manualResult.risk_score.toFixed(0)}
+              {Number(manualResult.risk_score).toFixed(0)}
             </span>
 
             {" — "}
@@ -264,37 +358,32 @@ export default function Dashboard({
             {manualResult.recommendation}
           </p>
         )}
+
       </div>
+
     </div>
   );
 }
 
-function MapLoadingPlaceholder() {
-  return (
-    <div
-      style={{
-        height: 620,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "var(--panel)",
-        border: "1px solid var(--line)",
-        borderRadius: 4,
-        color: "var(--text-muted)",
-        fontSize: 13,
-      }}
-    >
-      Loading satellite imagery…
-    </div>
-  );
-}
+
+/* ================================================================
+   SELECTED LOCATION DETAIL PANEL
+   ================================================================ */
 
 function DetailPanel({ reading }) {
   const color =
-    RISK_COLOR[reading.risk_level] ?? "var(--text-muted)";
+    RISK_COLOR[reading.risk_level] ??
+    "var(--text-muted)";
 
-  const { icon: Icon, terrain } =
-    getRegionIdentity(reading.location_id);
+  const regionIdentity = getRegionIdentity(
+    reading.location_id
+  );
+
+  const Icon = regionIdentity?.icon;
+
+  const terrain =
+    regionIdentity?.terrain ??
+    "Terrain information unavailable";
 
   return (
     <div
@@ -307,6 +396,9 @@ function DetailPanel({ reading }) {
         padding: "20px 22px",
       }}
     >
+
+      {/* Header */}
+
       <div
         style={{
           display: "flex",
@@ -316,6 +408,7 @@ function DetailPanel({ reading }) {
           gap: 12,
         }}
       >
+
         <div
           style={{
             display: "flex",
@@ -323,23 +416,28 @@ function DetailPanel({ reading }) {
             alignItems: "flex-start",
           }}
         >
-          <div
-            style={{
-              background: "var(--panel-raised)",
-              border: "1px solid var(--line)",
-              borderRadius: 6,
-              padding: 10,
-              flexShrink: 0,
-            }}
-          >
-            <Icon
-              size={22}
-              color={color}
-              strokeWidth={1.75}
-            />
-          </div>
+
+          {Icon && (
+            <div
+              style={{
+                background: "var(--panel-raised)",
+                border: "1px solid var(--line)",
+                borderRadius: 6,
+                padding: 10,
+                flexShrink: 0,
+              }}
+            >
+              <Icon
+                size={22}
+                color={color}
+                strokeWidth={1.75}
+              />
+            </div>
+          )}
+
 
           <div>
+
             <h3
               style={{
                 fontFamily: "var(--font-display)",
@@ -350,6 +448,7 @@ function DetailPanel({ reading }) {
               {reading.location_name}
             </h3>
 
+
             <p
               style={{
                 margin: "2px 0 0",
@@ -359,10 +458,20 @@ function DetailPanel({ reading }) {
             >
               {reading.state} · {terrain}
             </p>
+
           </div>
+
         </div>
 
-        <div style={{ textAlign: "right" }}>
+
+        {/* Risk score */}
+
+        <div
+          style={{
+            textAlign: "right",
+          }}
+        >
+
           <div
             style={{
               fontFamily: "var(--font-mono)",
@@ -371,8 +480,9 @@ function DetailPanel({ reading }) {
               lineHeight: 1,
             }}
           >
-            {reading.risk_score.toFixed(0)}
+            {Number(reading.risk_score).toFixed(0)}
           </div>
+
 
           <div
             style={{
@@ -384,8 +494,15 @@ function DetailPanel({ reading }) {
           >
             {reading.risk_level}
           </div>
+
         </div>
+
       </div>
+
+
+      {/* ==========================================================
+          METRICS
+          ========================================================== */}
 
       <div
         style={{
@@ -395,24 +512,33 @@ function DetailPanel({ reading }) {
           marginTop: 20,
         }}
       >
+
         <dl style={dlGrid}>
+
           <Metric
             label="Rainfall (24h)"
             value={`${reading.rainfall_mm_24h} mm`}
           />
+
 
           <Metric
             label="Soil moisture"
             value={`${reading.soil_moisture_pct}%`}
           />
 
+
           <Metric
             label="Slope"
             value={`${reading.slope_deg}°`}
           />
+
         </dl>
 
+
+        {/* Risk trend */}
+
         <div>
+
           <p
             style={{
               color: "var(--text-muted)",
@@ -423,11 +549,19 @@ function DetailPanel({ reading }) {
             Recent risk trend
           </p>
 
+
           <HistorySparkline
             locationId={reading.location_id}
           />
+
         </div>
+
       </div>
+
+
+      {/* ==========================================================
+          CONTRIBUTING FACTORS
+          ========================================================== */}
 
       <p
         style={{
@@ -439,6 +573,7 @@ function DetailPanel({ reading }) {
         Contributing factors
       </p>
 
+
       <ul
         style={{
           margin: 0,
@@ -446,24 +581,46 @@ function DetailPanel({ reading }) {
           fontSize: 14,
         }}
       >
-        {reading.contributing_factors.map((f, i) => (
-          <li key={i}>{f}</li>
-        ))}
+
+        {(reading.contributing_factors ?? []).map(
+          (factor, index) => (
+            <li key={index}>
+              {factor}
+            </li>
+          )
+        )}
+
       </ul>
 
-      <p style={{ marginTop: 14, fontSize: 14 }}>
+
+      {/* Recommendation */}
+
+      <p
+        style={{
+          marginTop: 14,
+          fontSize: 14,
+        }}
+      >
         <strong style={{ color }}>
           Recommendation:{" "}
         </strong>
+
         {reading.recommendation}
       </p>
+
     </div>
   );
 }
 
+
+/* ================================================================
+   METRIC
+   ================================================================ */
+
 function Metric({ label, value }) {
   return (
     <div>
+
       <dt
         style={{
           fontSize: 11,
@@ -474,6 +631,7 @@ function Metric({ label, value }) {
         {label}
       </dt>
 
+
       <dd
         style={{
           margin: 0,
@@ -483,11 +641,21 @@ function Metric({ label, value }) {
       >
         {value}
       </dd>
+
     </div>
   );
 }
 
-function Field({ label, value, onChange }) {
+
+/* ================================================================
+   FORM FIELD
+   ================================================================ */
+
+function Field({
+  label,
+  value,
+  onChange,
+}) {
   return (
     <label
       style={{
@@ -495,14 +663,18 @@ function Field({ label, value, onChange }) {
         color: "var(--text-muted)",
       }}
     >
+
       {label}
+
       <br />
 
       <input
         type="number"
         required
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) =>
+          onChange(e.target.value)
+        }
         style={{
           marginTop: 4,
           background: "var(--bg)",
@@ -514,9 +686,15 @@ function Field({ label, value, onChange }) {
           fontFamily: "var(--font-mono)",
         }}
       />
+
     </label>
   );
 }
+
+
+/* ================================================================
+   CENTERED MESSAGE
+   ================================================================ */
 
 function Centered({ children }) {
   return (
@@ -537,10 +715,13 @@ function Centered({ children }) {
   );
 }
 
+
+/* ================================================================
+   METRIC GRID
+   ================================================================ */
+
 const dlGrid = {
   display: "grid",
   gridTemplateColumns: "repeat(3, auto)",
   gap: 24,
 };
-
-
