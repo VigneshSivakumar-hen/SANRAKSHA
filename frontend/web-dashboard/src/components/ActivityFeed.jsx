@@ -72,6 +72,7 @@ export default function ActivityFeed({ readings, refreshKey, onSelect }) {
       <div style={{ maxHeight: 480, overflowY: "auto" }}>
         {events.map((e, i) => (
           <button
+            className="activity-item"
             key={`${e.location_id}-${e.recorded_at}-${i}`}
             onClick={() => onSelect(e.location_id)}
             style={{
