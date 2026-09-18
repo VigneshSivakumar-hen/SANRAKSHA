@@ -243,11 +243,11 @@ export default function Dashboard({
           </span>
         </div>
 
-        <form onSubmit={handleManualSubmit} style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "end" }}>
+        <form className="manual-form" onSubmit={handleManualSubmit} style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "end" }}>
           <Field label="Rainfall 24h (mm)" value={form.rainfall_mm_24h} onChange={(v) => setForm({ ...form, rainfall_mm_24h: v })} />
           <Field label="Soil moisture (%)" value={form.soil_moisture_pct} onChange={(v) => setForm({ ...form, soil_moisture_pct: v })} />
           <Field label="Slope (°)" value={form.slope_deg} onChange={(v) => setForm({ ...form, slope_deg: v })} />
-          <button type="submit" disabled={manualStatus === "loading"} style={{ background: "var(--panel-raised)", border: "1px solid var(--line)", borderRadius: 4, color: "var(--text)", padding: "8px 16px", cursor: manualStatus === "loading" ? "wait" : "pointer", height: 38, fontFamily: "var(--font-mono)", fontSize: 12 }}>
+          <button className="manual-submit" type="submit" disabled={manualStatus === "loading"} style={{ background: "var(--panel-raised)", border: "1px solid var(--line)", borderRadius: 4, color: "var(--text)", padding: "8px 16px", cursor: manualStatus === "loading" ? "wait" : "pointer", height: 38, fontFamily: "var(--font-mono)", fontSize: 12 }}>
             {manualStatus === "loading" ? "Assessing…" : "Assess risk"}
           </button>
         </form>
@@ -305,13 +305,13 @@ function DetailPanel({ reading }) {
         </div>
       </div>
 
-      <div style={{ borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)", padding: 16, display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
+      <div className="detail-metrics" style={{ borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)", padding: 16, display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
         <SensorMetric label="Rainfall · 24h" value={`${reading.rainfall_mm_24h} mm`} percent={rainfallPercent(reading.rainfall_mm_24h)} tone={sensorTone("rainfall", reading.rainfall_mm_24h)} />
         <SensorMetric label="Soil moisture" value={`${reading.soil_moisture_pct}%`} percent={clampPercent(reading.soil_moisture_pct)} tone={sensorTone("soil", reading.soil_moisture_pct)} />
         <SensorMetric label="Terrain slope" value={`${reading.slope_deg}°`} percent={slopePercent(reading.slope_deg)} tone={sensorTone("slope", reading.slope_deg)} />
       </div>
 
-      <div style={{ padding: 18, display: "grid", gridTemplateColumns: "minmax(0, 1.05fr) minmax(220px, 0.95fr)", gap: 20 }}>
+      <div className="detail-lower-grid" style={{ padding: 18, display: "grid", gridTemplateColumns: "minmax(0, 1.05fr) minmax(220px, 0.95fr)", gap: 20 }}>
         <div>
           <PanelLabel>RECENT RISK TREND</PanelLabel>
           <div style={{ minHeight: 88, display: "flex", alignItems: "center", marginTop: 8, padding: "8px 0" }}>
@@ -400,9 +400,9 @@ function sensorTone(type, value) {
 
 function Field({ label, value, onChange }) {
   return (
-    <label style={{ fontSize: 12, color: "var(--text-muted)" }}>
+    <label className="manual-field" style={{ fontSize: 12, color: "var(--text-muted)" }}>
       {label}<br />
-      <input type="number" required value={value} onChange={(e) => onChange(e.target.value)} style={{ marginTop: 4, background: "var(--bg)", border: "1px solid var(--line)", borderRadius: 4, color: "var(--text)", padding: "8px 10px", width: 140, fontFamily: "var(--font-mono)" }} />
+      <input className="manual-field-input" type="number" inputMode="decimal" required value={value} onChange={(e) => onChange(e.target.value)} style={{ marginTop: 4, background: "var(--bg)", border: "1px solid var(--line)", borderRadius: 4, color: "var(--text)", padding: "8px 10px", width: 140, fontFamily: "var(--font-mono)" }} />
     </label>
   );
 }

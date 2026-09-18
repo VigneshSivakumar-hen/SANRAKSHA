@@ -144,3 +144,172 @@
     animation: none;
   }
 }
+
+
+/* =========================================================
+   MOBILE RESPONSIVENESS — 320 / 375 / 414 / 768
+   ========================================================= */
+
+.dashboard-shell {
+  width: 100%;
+  min-width: 0;
+}
+
+.dashboard-shell > * {
+  min-width: 0;
+}
+
+.dashboard-shell,
+.dashboard-shell * {
+  max-width: 100%;
+}
+
+.dashboard-shell .command-tools,
+.dashboard-shell .command-feed {
+  min-width: 0;
+}
+
+.dashboard-shell .manual-form {
+  width: 100%;
+}
+
+.dashboard-shell .manual-field {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.dashboard-shell .manual-field-input {
+  width: min(100%, 180px) !important;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.dashboard-shell .map-view-option {
+  min-height: 44px;
+  padding: 10px 14px !important;
+}
+
+.dashboard-shell .activity-item {
+  min-height: 44px;
+}
+
+.dashboard-shell .satellite-map-shell {
+  width: 100%;
+  max-width: 100%;
+}
+
+.dashboard-shell .detail-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dashboard-shell .detail-lower-grid {
+  grid-template-columns: minmax(0, 1.05fr) minmax(220px, 0.95fr);
+}
+
+@media (max-width: 767px) {
+  .dashboard-grid.dashboard-shell {
+    width: 94vw !important;
+    max-width: 94vw !important;
+    margin-left: auto;
+    margin-right: auto;
+    left: auto !important;
+    transform: none !important;
+    padding: 10px 0 28px !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 14px !important;
+  }
+
+  .dashboard-shell .command-feed,
+  .dashboard-shell .command-tools {
+    grid-column: auto !important;
+  }
+
+  .dashboard-shell .satellite-map-shell {
+    height: clamp(320px, 62vh, 520px) !important;
+  }
+
+  .dashboard-shell .detail-metrics,
+  .dashboard-shell .detail-lower-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .dashboard-shell .manual-form {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+
+  .dashboard-shell .manual-field {
+    width: 100%;
+    flex: 1 1 auto;
+  }
+
+  .dashboard-shell .manual-field-input,
+  .dashboard-shell .manual-form > button {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .dashboard-shell .command-tools {
+    padding: 16px !important;
+  }
+}
+
+@media (max-width: 414px) {
+  .dashboard-grid.dashboard-shell {
+    width: calc(100vw - 24px) !important;
+    max-width: calc(100vw - 24px) !important;
+  }
+
+  .dashboard-shell h2 {
+    font-size: 1.25rem !important;
+  }
+
+  .dashboard-shell h3 {
+    font-size: 1.15rem !important;
+  }
+
+  .dashboard-shell .detail-lower-grid {
+    gap: 14px !important;
+  }
+}
+
+@media (max-width: 375px) {
+  .dashboard-grid.dashboard-shell {
+    width: calc(100vw - 20px) !important;
+    max-width: calc(100vw - 20px) !important;
+  }
+
+  .dashboard-shell .map-view-option {
+    flex: 1 1 0;
+  }
+
+  .dashboard-shell .detail-metrics {
+    gap: 8px !important;
+  }
+}
+
+@media (max-width: 320px) {
+  .dashboard-grid.dashboard-shell {
+    width: 300px !important;
+    max-width: calc(100vw - 20px) !important;
+  }
+
+  .dashboard-shell .detail-metrics {
+    gap: 8px !important;
+  }
+
+  .dashboard-shell .detail-metrics > * {
+    padding: 10px !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1180px) {
+  .dashboard-grid.dashboard-shell {
+    width: min(94vw, 1000px) !important;
+    max-width: min(94vw, 1000px) !important;
+    left: auto !important;
+    transform: none !important;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
