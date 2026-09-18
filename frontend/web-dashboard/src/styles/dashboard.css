@@ -1,68 +1,65 @@
-/* Layout ------------------------------------------------------------ */
+/* ================================================================
+   SANRAKSHA — RESPONSIVE COMMAND CENTER LAYOUT
+   ================================================================ */
 
 .dashboard-grid {
-  display: grid;
-  grid-template-columns: 280px 1fr 300px;
-  gap: 20px;
-  padding: 24px;
-  max-width: 1600px;
+  /* Centered container: the grid itself owns its width and uses
+     auto margins instead of viewport-relative left/transform offsets. */
+  width: min(calc(100% - 32px), 1400px);
+  max-width: 1400px;
   margin: 0 auto;
+  padding: 24px 0 44px;
+
+  display: grid;
+  grid-template-columns:
+    minmax(230px, 0.85fr)
+    minmax(0, 2.3fr)
+    minmax(230px, 0.85fr);
+  gap: 20px;
+
+  align-items: start;
+  justify-content: center;
+}
+
+.dashboard-grid > * {
+  min-width: 0;
+}
+
+.command-feed,
+.command-tools {
+  min-width: 0;
 }
 
 .command-tools {
   grid-column: 1 / -1;
 }
 
-@media (max-width: 1100px) {
-  .dashboard-grid {
-    grid-template-columns: 260px 1fr;
-  }
-  .command-feed {
-    grid-column: 1 / -1;
-  }
+.dashboard-shell .leaflet-container,
+.dashboard-shell .satellite-map-shell {
+  width: 100%;
+  max-width: 100%;
 }
 
-@media (max-width: 860px) {
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-    padding: 16px;
-    gap: 16px;
-  }
-  .command-feed {
-    grid-column: auto;
-  }
-}
-
+/* Header is also constrained to the same centered content rhythm. */
 .app-header {
+  width: 100%;
+  min-height: 68px;
+  padding: 16px max(16px, calc((100% - 1400px) / 2));
   border-bottom: 1px solid var(--line);
-  padding: 16px 24px;
   display: flex;
   align-items: baseline;
   gap: 12px;
   flex-wrap: wrap;
 }
 
-@media (max-width: 640px) {
-  .app-header {
-    padding: 14px 16px;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-  }
-
-  .status-pill {
-    margin-left: 0;
-  }
-}
-
 .status-pill {
+  margin-left: auto;
   display: inline-flex;
   align-items: center;
   gap: 7px;
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-muted);
-  margin-left: auto;
 }
 
 .status-dot {
@@ -82,8 +79,7 @@
   background: var(--risk-high);
 }
 
-/* Location cards ------------------------------------------------------ */
-
+/* Location cards */
 .risk-card {
   transition: background-color 150ms ease, border-color 150ms ease;
 }
@@ -97,8 +93,7 @@
   outline-offset: 2px;
 }
 
-/* Map legend ---------------------------------------------------------- */
-
+/* Map legend */
 .map-legend {
   display: flex;
   flex-wrap: wrap;
@@ -122,21 +117,17 @@
   flex-shrink: 0;
 }
 
-/* One-time entrance, applied only to the initial dashboard mount ----- */
-
+/* Keep the entrance animation from changing layout transforms.
+   The previous transform animation was the root cause of the
+   desktop right-shift: it overrode the dashboard's centering
+   transform after the animation completed. */
 .reveal-once {
   animation: revealOnce 420ms ease both;
 }
 
 @keyframes revealOnce {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -145,92 +136,59 @@
   }
 }
 
+/* ================================================================
+   RESPONSIVE BREAKPOINTS — mobile first
+   576px / 768px / 992px / 1200px
+   ================================================================ */
 
-/* =========================================================
-   MOBILE RESPONSIVENESS — 320 / 375 / 414 / 768
-   ========================================================= */
+@media (max-width: 1199px) {
+  .dashboard-grid {
+    grid-template-columns:
+      minmax(220px, 0.9fr)
+      minmax(0, 1.8fr);
+    width: min(calc(100% - 32px), 1000px);
+  }
 
-.dashboard-shell {
-  width: 100%;
-  min-width: 0;
+  .command-feed {
+    grid-column: 1 / -1;
+  }
 }
 
-.dashboard-shell > * {
-  min-width: 0;
-}
+@media (max-width: 991px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    width: min(calc(100% - 32px), 760px);
+    padding-top: 18px;
+    gap: 16px;
+  }
 
-.dashboard-shell,
-.dashboard-shell * {
-  max-width: 100%;
-}
+  .command-feed,
+  .command-tools {
+    grid-column: auto;
+  }
 
-.dashboard-shell .command-tools,
-.dashboard-shell .command-feed {
-  min-width: 0;
-}
-
-.dashboard-shell .manual-form {
-  width: 100%;
-}
-
-.dashboard-shell .manual-field {
-  flex: 1 1 180px;
-  min-width: 0;
-}
-
-.dashboard-shell .manual-field-input {
-  width: min(100%, 180px) !important;
-  min-height: 44px;
-  box-sizing: border-box;
-}
-
-.dashboard-shell .map-view-option {
-  min-height: 44px;
-  padding: 10px 14px !important;
-}
-
-.dashboard-shell .activity-item {
-  min-height: 44px;
-}
-
-.dashboard-shell .satellite-map-shell {
-  width: 100%;
-  max-width: 100%;
-}
-
-.dashboard-shell .detail-metrics {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.dashboard-shell .detail-lower-grid {
-  grid-template-columns: minmax(0, 1.05fr) minmax(220px, 0.95fr);
+  .app-header {
+    padding: 14px 16px;
+  }
 }
 
 @media (max-width: 767px) {
-  .dashboard-grid.dashboard-shell {
-    width: 94vw !important;
-    max-width: 94vw !important;
+  .dashboard-grid {
+    width: calc(100% - 24px);
+    max-width: none;
     margin-left: auto;
     margin-right: auto;
-    left: auto !important;
-    transform: none !important;
-    padding: 10px 0 28px !important;
-    grid-template-columns: minmax(0, 1fr) !important;
-    gap: 14px !important;
-  }
-
-  .dashboard-shell .command-feed,
-  .dashboard-shell .command-tools {
-    grid-column: auto !important;
+    padding: 12px 0 28px;
+    gap: 14px;
   }
 
   .dashboard-shell .satellite-map-shell {
-    height: clamp(320px, 62vh, 520px) !important;
+    height: clamp(300px, 62vh, 500px) !important;
   }
 
   .dashboard-shell .detail-metrics,
   .dashboard-shell .detail-lower-grid {
-    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-columns: 1fr !important;
   }
 
   .dashboard-shell .manual-form {
@@ -240,6 +198,7 @@
 
   .dashboard-shell .manual-field {
     width: 100%;
+    min-width: 0;
     flex: 1 1 auto;
   }
 
@@ -247,17 +206,37 @@
   .dashboard-shell .manual-form > button {
     width: 100% !important;
     max-width: none !important;
+    min-height: 44px;
   }
 
   .dashboard-shell .command-tools {
     padding: 16px !important;
   }
+
+  .dashboard-shell .map-view-option {
+    min-height: 44px;
+    padding: 10px 14px !important;
+  }
+
+  .dashboard-shell .activity-item {
+    min-height: 44px;
+  }
 }
 
-@media (max-width: 414px) {
-  .dashboard-grid.dashboard-shell {
-    width: calc(100vw - 24px) !important;
-    max-width: calc(100vw - 24px) !important;
+@media (max-width: 575px) {
+  .dashboard-grid {
+    width: calc(100% - 20px);
+  }
+
+  .app-header {
+    min-height: auto;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+
+  .status-pill {
+    margin-left: 0;
   }
 
   .dashboard-shell h2 {
@@ -267,49 +246,46 @@
   .dashboard-shell h3 {
     font-size: 1.15rem !important;
   }
+}
 
-  .dashboard-shell .detail-lower-grid {
-    gap: 14px !important;
+@media (max-width: 414px) {
+  .dashboard-grid {
+    width: calc(100% - 16px);
   }
 }
 
 @media (max-width: 375px) {
-  .dashboard-grid.dashboard-shell {
-    width: calc(100vw - 20px) !important;
-    max-width: calc(100vw - 20px) !important;
+  .dashboard-grid {
+    width: calc(100% - 12px);
   }
 
   .dashboard-shell .map-view-option {
     flex: 1 1 0;
   }
-
-  .dashboard-shell .detail-metrics {
-    gap: 8px !important;
-  }
 }
 
 @media (max-width: 320px) {
-  .dashboard-grid.dashboard-shell {
-    width: 300px !important;
-    max-width: calc(100vw - 20px) !important;
+  .dashboard-grid {
+    width: calc(100% - 10px);
   }
 
   .dashboard-shell .detail-metrics {
     gap: 8px !important;
   }
-
-  .dashboard-shell .detail-metrics > * {
-    padding: 10px !important;
-  }
 }
 
-@media (min-width: 768px) and (max-width: 1180px) {
-  .dashboard-grid.dashboard-shell {
-    width: min(94vw, 1000px) !important;
-    max-width: min(94vw, 1000px) !important;
-    left: auto !important;
-    transform: none !important;
-    margin-left: auto;
-    margin-right: auto;
-  }
+/* Prevent common embedded/map elements from forcing a desktop width. */
+.dashboard-shell img,
+.dashboard-shell svg,
+.dashboard-shell canvas,
+.dashboard-shell video,
+.dashboard-shell iframe {
+  max-width: 100%;
+}
+
+.dashboard-shell input,
+.dashboard-shell select,
+.dashboard-shell textarea,
+.dashboard-shell button {
+  max-width: 100%;
 }
