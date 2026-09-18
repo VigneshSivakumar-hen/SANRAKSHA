@@ -20,6 +20,7 @@ export default function MapViewToggle({ value, onChange }) {
         const active = value === opt.value;
         return (
           <button
+            className="map-view-option"
             key={opt.value}
             role="tab"
             aria-selected={active}
