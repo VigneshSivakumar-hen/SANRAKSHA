@@ -37,6 +37,7 @@ export default function SatelliteMap({
 }) {
   return (
     <div
+      className="satellite-map-shell"
       style={{
         position: "relative",
         width: "100%",
