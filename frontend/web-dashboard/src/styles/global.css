@@ -77,7 +77,7 @@ html {
 
 body {
   min-width: 320px;
-  overflow-x: auto;
+  overflow-x: hidden;
   touch-action: auto;
 }
 
