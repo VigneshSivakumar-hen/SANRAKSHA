@@ -104,7 +104,9 @@ export default function Dashboard({
           <IndiaMap readings={readings} selectedId={selectedId} onSelect={setSelectedId} />
         )}
 
-        {selected && <SatelliteObservationPanel location={selected} />}\n\n        {selected && <DetailPanel reading={selected} />}
+        {selected && <SatelliteObservationPanel location={selected} />}
+
+        {selected && <DetailPanel reading={selected} />}
       </div>
 
       <div className="command-feed">
