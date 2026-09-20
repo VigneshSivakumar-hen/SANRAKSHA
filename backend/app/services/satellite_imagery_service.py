@@ -360,7 +360,6 @@ def render_observation(
                     "to": end.isoformat().replace("+00:00", "Z"),
                 },
                 "mosaickingOrder": "mostRecent",
-                "maxCloudCoverage": settings.SATELLITE_MAX_CLOUD_COVER_PCT,
             },
         }
     else:
