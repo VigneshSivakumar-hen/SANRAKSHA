@@ -79,6 +79,9 @@ MQTT provides lightweight communication between sensor devices, the MQTT broker,
 **🗺️ Risk Visualization**
 The React dashboard displays monitored locations on a map and lists their current risk levels, with a live "last updated" indicator and a color legend.
 
+**🛰️ Near-Real-Time Sentinel Imagery**
+The dashboard can request the latest available Copernicus Sentinel-2 optical scene and Sentinel-1 SAR scene for a monitored location. The backend searches the Copernicus catalog and proxies rendered imagery through the FastAPI API, so Copernicus credentials never reach the browser. Satellite observations are discrete acquisitions rather than a continuous video stream.
+
 **⚡ Real-Time Monitoring**
 Incoming sensor data can be continuously processed and converted into updated risk predictions; the dashboard polls for fresh data automatically.
 
@@ -184,7 +187,7 @@ SANRAKSHA/
    - `sanraksha-db` — a managed Postgres database
 3. Once deployed, open the frontend service's URL — that's your public dashboard.
 
-See [`render.yaml`](./render.yaml) for the exact configuration, including environment variables and the auto-generated admin/ingest keys.
+See [`render.yaml`](./render.yaml) for the deployment configuration. For the Sentinel imagery feed, add `COPERNICUS_CLIENT_ID` and `COPERNICUS_CLIENT_SECRET` to the SANRAKSHA backend environment in Render. The values must come from an OAuth client created in Copernicus Data Space / Sentinel Hub.
 
 ## 🐳 Run locally with Docker
 
@@ -268,7 +271,7 @@ Future versions can integrate additional warning channels such as SMS alerts, mo
 
 SANRAKSHA is designed to evolve into a larger disaster-management platform. Planned enhancements include:
 
-- 🛰️ Satellite-based terrain and rainfall analysis
+- 🛰️ Satellite-based terrain and rainfall analysis (Sentinel-1/Sentinel-2 integration is now implemented)
 - 🗺️ Advanced GIS risk maps
 - 📱 Flutter mobile application
 - 🌧️ Real-time weather data integration (real IMD API, beyond the current mock data)
@@ -279,6 +282,20 @@ SANRAKSHA is designed to evolve into a larger disaster-management platform. Plan
 - 👥 Crowdsourced landslide reporting
 - 🧠 Advanced machine-learning models
 - 📈 Historical risk analytics
+
+## 🛰️ Copernicus Sentinel imagery setup
+
+The satellite integration uses the Copernicus Data Space Sentinel Hub OAuth2 + Catalog + Processing APIs.
+
+1. Create an OAuth client in Copernicus Data Space / Sentinel Hub.
+2. In the SANRAKSHA Render backend, add:
+   - `COPERNICUS_CLIENT_ID`
+   - `COPERNICUS_CLIENT_SECRET`
+3. Redeploy the backend.
+4. Open a monitored location in the dashboard. The **Latest satellite acquisition** panel will search the Copernicus catalog and render the selected Sentinel-2 or Sentinel-1 acquisition.
+5. Sentinel-1 SAR remains available when optical imagery is cloudy or when SAR is the more recent observation.
+
+The implementation uses a backend proxy so the browser never receives the Copernicus OAuth client secret.
 
 ## 🔐 Security & Reliability
 
