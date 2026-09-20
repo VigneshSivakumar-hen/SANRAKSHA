@@ -55,6 +55,26 @@ services:
       - key: NASA_POWER_BASE_URL
         value: "https://power.larc.nasa.gov/api"
 
+      # --------------------------------------------------------
+      # Copernicus Sentinel imagery
+      # --------------------------------------------------------
+      # Add these two values in the Render Dashboard. They are intentionally
+      # not stored in Git because they are third-party credentials.
+      - key: COPERNICUS_CLIENT_ID
+        sync: false
+
+      - key: COPERNICUS_CLIENT_SECRET
+        sync: false
+
+      - key: SATELLITE_LOOKBACK_DAYS
+        value: "30"
+
+      - key: SATELLITE_MAX_CLOUD_COVER_PCT
+        value: "80"
+
+      - key: SATELLITE_AOI_RADIUS_DEG
+        value: "0.04"
+
       # Optional IMD configuration.
       #
       # Leave IMD_API_KEY out unless a valid key is actually available.
