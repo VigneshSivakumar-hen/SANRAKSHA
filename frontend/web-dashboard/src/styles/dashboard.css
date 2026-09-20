@@ -289,3 +289,220 @@
 .dashboard-shell button {
   max-width: 100%;
 }
+
+
+/* ================================================================
+   SATELLITE OBSERVATION PANEL
+   ================================================================ */
+
+.satellite-observation-panel {
+  margin-top: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.satellite-observation-header {
+  padding: 16px 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.satellite-eyebrow {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  margin-bottom: 5px;
+}
+
+.satellite-observation-header h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.satellite-observation-header p {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.satellite-refresh-button {
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel-raised);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.satellite-refresh-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.satellite-source-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 12px 0;
+}
+
+.satellite-source-tab {
+  min-height: 34px;
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel-raised);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.satellite-source-tab.is-active {
+  color: var(--text);
+  border-color: var(--risk-low);
+  box-shadow: inset 0 -2px 0 var(--risk-low);
+}
+
+.satellite-observation-content {
+  padding: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(190px, 0.65fr);
+  gap: 12px;
+}
+
+.satellite-image-frame {
+  position: relative;
+  min-height: 260px;
+  background: #101010;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.satellite-image-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 260px;
+  object-fit: cover;
+}
+
+.satellite-image-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: inline-flex;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.88);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  backdrop-filter: blur(8px);
+}
+
+.satellite-metadata {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-content: start;
+  gap: 8px;
+}
+
+.satellite-metadata > div {
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--panel-raised);
+  min-width: 0;
+}
+
+.satellite-metadata span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 9px;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.satellite-metadata strong {
+  display: block;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.satellite-source-note {
+  padding: 0 14px 14px;
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.satellite-empty,
+.satellite-error {
+  margin: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--panel-raised);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.satellite-error {
+  border-left: 3px solid var(--risk-high);
+}
+
+.satellite-error strong,
+.satellite-error span {
+  display: block;
+}
+
+.satellite-error span {
+  margin-top: 4px;
+}
+
+@media (max-width: 767px) {
+  .satellite-observation-content {
+    grid-template-columns: 1fr;
+  }
+
+  .satellite-image-frame,
+  .satellite-image-frame img {
+    min-height: 220px;
+  }
+
+  .satellite-observation-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .satellite-refresh-button {
+    width: 100%;
+  }
+
+  .satellite-source-tab {
+    min-height: 44px;
+    flex: 1 1 auto;
+  }
+}

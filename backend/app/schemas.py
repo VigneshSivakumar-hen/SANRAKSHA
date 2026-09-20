@@ -63,3 +63,23 @@ class IngestPayload(BaseModel):
 class SyncResult(BaseModel):
     location_id: str
     risk_level: str
+
+
+class SatelliteObservation(BaseModel):
+    collection: str
+    mission: str
+    scene_id: str
+    acquired_at: str
+    cloud_cover_pct: Optional[float] = None
+    timeliness: Optional[str] = None
+    orbit_direction: Optional[str] = None
+
+
+class SatelliteLatestResponse(BaseModel):
+    location_id: str
+    location_name: str
+    lat: float
+    lon: float
+    preferred_collection: Optional[str] = None
+    observations: list[SatelliteObservation]
+    checked_at: str

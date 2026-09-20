@@ -5,6 +5,7 @@ import RiskCard from "../components/RiskCard";
 import IndiaMap from "../components/IndiaMap";
 import MapViewToggle from "../components/MapViewToggle";
 import SatelliteMap from "../components/SatelliteMap";
+import SatelliteObservationPanel from "../components/SatelliteObservationPanel";
 import RiskRings from "../components/RiskRings";
 import StateDistribution from "../components/StateDistribution";
 import ActivityFeed from "../components/ActivityFeed";
@@ -102,6 +103,8 @@ export default function Dashboard({
         ) : (
           <IndiaMap readings={readings} selectedId={selectedId} onSelect={setSelectedId} />
         )}
+
+        {selected && <SatelliteObservationPanel location={selected} />}
 
         {selected && <DetailPanel reading={selected} />}
       </div>

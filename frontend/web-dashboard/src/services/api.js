@@ -35,3 +35,18 @@ export async function fetchHistory(locationId) {
   const res = await fetch(`${BASE_URL}/locations/${locationId}/history`);
   return handle(res);
 }
+
+
+export async function fetchSatelliteLatest(locationId) {
+  const res = await fetch(`${BASE_URL}/satellite/latest/${encodeURIComponent(locationId)}`);
+  return handle(res);
+}
+
+export function satelliteImageUrl(locationId, observation, cacheKey = "") {
+  const params = new URLSearchParams({
+    collection: observation.collection,
+    acquired_at: observation.acquired_at,
+  });
+  if (cacheKey) params.set("v", cacheKey);
+  return `${BASE_URL}/satellite/image/${encodeURIComponent(locationId)}?${params.toString()}`;
+}
