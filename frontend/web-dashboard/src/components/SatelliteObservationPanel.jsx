@@ -165,7 +165,7 @@ export default function SatelliteObservationPanel({ location }) {
                 />
                 <div className="satellite-image-badge">
                   <span>{active.mission}</span>
-                  <span>LIVE FEED</span>
+                  <span>LATEST SCENE</span>
                 </div>
               </div>
 
