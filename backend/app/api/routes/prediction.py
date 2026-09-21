@@ -146,6 +146,6 @@ def get_satellite_image(
 
     return Response(
         content=image,
-        media_type="image/jpeg",
+        media_type="image/png" if collection == "sentinel-2-l2a" else "image/jpeg",
         headers={"Cache-Control": "public, max-age=600"},
     )
