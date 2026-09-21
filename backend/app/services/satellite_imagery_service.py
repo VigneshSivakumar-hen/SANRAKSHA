@@ -43,21 +43,23 @@ _cache_lock = threading.Lock()
 S2_EVALSCRIPT = """//VERSION=3
 function setup() {
   return {
-    input: ["B02", "B03", "B04", "SCL"],
-    output: { bands: 3, sampleType: "AUTO" }
+    input: ["B02", "B03", "B04", "dataMask"],
+    output: { bands: 4, sampleType: "AUTO" }
   };
 }
 
 function evaluatePixel(sample) {
-  if ([8, 9, 10].includes(sample.SCL)) {
-    return [0.05, 0.05, 0.05];
+  var red = Math.min(1, 2.5 * sample.B04);
+  var green = Math.min(1, 2.5 * sample.B03);
+  var blue = Math.min(1, 2.5 * sample.B02);
+
+  // Make pixels outside valid Sentinel-2 coverage transparent instead of
+  // rendering them as black blocks in the dashboard.
+  if (sample.dataMask === 0) {
+    return [0, 0, 0, 0];
   }
 
-  return [
-    Math.min(1, 2.5 * sample.B04),
-    Math.min(1, 2.5 * sample.B03),
-    Math.min(1, 2.5 * sample.B02)
-  ];
+  return [red, green, blue, 1];
 }
 """
 
@@ -323,7 +325,7 @@ def render_observation(
     collection: str,
     acquired_at: str,
 ) -> bytes:
-    """Render the selected real Sentinel acquisition as a JPEG image."""
+    """Render the selected real Sentinel acquisition as a PNG/JPEG image."""
     if collection not in {S1_COLLECTION, S2_COLLECTION}:
         raise ValueError("Unsupported satellite collection")
 
@@ -396,7 +398,7 @@ def render_observation(
             "responses": [
                 {
                     "identifier": "default",
-                    "format": {"type": "image/jpeg"},
+                    "format": {"type": "image/png" if collection == S2_COLLECTION else "image/jpeg"},
                 }
             ],
         },
@@ -409,7 +411,7 @@ def render_observation(
         headers={
             "Authorization": f"Bearer {_get_token()}",
             "Content-Type": "application/json",
-            "Accept": "image/jpeg",
+            "Accept": "image/png" if collection == S2_COLLECTION else "image/jpeg",
         },
         timeout=60,
     )
