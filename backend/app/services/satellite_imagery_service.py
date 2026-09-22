@@ -66,15 +66,28 @@ function evaluatePixel(sample) {
 S1_EVALSCRIPT = """//VERSION=3
 function setup() {
   return {
-    input: ["VV"],
+    input: ["VV", "VH"],
     output: { bands: 3, sampleType: "AUTO" }
   };
 }
 
+function toDb(value) {
+  return 10 * Math.log10(Math.max(value, 0.000001));
+}
+
 function evaluatePixel(sample) {
-  var db = 10 * Math.log10(Math.max(sample.VV, 0.000001));
-  var value = Math.max(0, Math.min(1, (db + 25) / 25));
-  return [value, value, value];
+  // False-color SAR composite:
+  // R = VV backscatter, G = VH backscatter, B = VV/VH separation.
+  // Decibel ranges are normalized for a readable terrain-oriented view.
+  var vv = toDb(sample.VV);
+  var vh = toDb(sample.VH);
+  var ratio = vv - vh;
+
+  var red = Math.max(0, Math.min(1, (vv + 25) / 25));
+  var green = Math.max(0, Math.min(1, (vh + 30) / 25));
+  var blue = Math.max(0, Math.min(1, (ratio - 2) / 15));
+
+  return [red, green, blue];
 }
 """
 

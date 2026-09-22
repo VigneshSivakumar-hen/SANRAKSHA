@@ -153,20 +153,34 @@ export default function SatelliteObservationPanel({ location }) {
 
           {active && (
             <div className="satellite-observation-content">
-              <div className={"satellite-image-frame" + cloudClass(active.cloud_cover_pct)}>
-                <img
-                  src={satelliteImageUrl(
-                    location.location_id,
-                    active,
-                    refreshKey
-                  )}
-                  alt={`${active.mission} satellite view of ${location.location_name}`}
-                  loading="lazy"
-                />
-                <div className="satellite-image-badge">
-                  <span>{active.mission}</span>
-                  <span>LATEST SCENE</span>
+              <div>
+                <div className={"satellite-image-frame" + cloudClass(active.cloud_cover_pct)}>
+                  <img
+                    src={satelliteImageUrl(
+                      location.location_id,
+                      active,
+                      refreshKey
+                    )}
+                    alt={`${active.mission} satellite view of ${location.location_name}`}
+                    loading="lazy"
+                  />
+                  <div className="satellite-image-badge">
+                    <span>{active.mission}</span>
+                    <span>{active.collection === "sentinel-1-grd" ? "VV / VH SAR" : "LATEST SCENE"}</span>
+                  </div>
                 </div>
+
+                {active.collection === "sentinel-1-grd" && (
+                  <div className="satellite-sar-legend" aria-label="Sentinel-1 SAR visualization legend">
+                    <div>
+                      <strong>SAR false-color composite</strong>
+                      <span>VV backscatter · VH backscatter · VV/VH separation</span>
+                    </div>
+                    <div className="satellite-sar-legend-note">
+                      Radar imagery is naturally grainy and does not represent RGB photography.
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="satellite-metadata">
