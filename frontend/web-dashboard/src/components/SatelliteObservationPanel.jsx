@@ -193,16 +193,6 @@ export default function SatelliteObservationPanel({ location }) {
                   </strong>
                 </div>
 
-                {active.cloud_cover_pct !== null &&
-                  active.cloud_cover_pct !== undefined && (
-                    <div>
-                      <span>Cloud cover</span>
-                      <strong>
-                        {Number(active.cloud_cover_pct).toFixed(1)}%
-                      </strong>
-                    </div>
-                  )}
-
                 {active.timeliness && (
                   <div>
                     <span>Processing</span>
