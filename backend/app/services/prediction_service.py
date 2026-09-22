@@ -4,7 +4,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from app.ml.predictor import RiskFeatures, predict
+from app.ml.predictor import RiskFeatures, predict, predict_batch
 from app.models import Location, Prediction, Reading
 from app.services import imd_service, satellite_service
 
@@ -86,22 +86,58 @@ def seed_if_empty(db: Session) -> None:
 
 
 def sync_all_locations(db: Session) -> list[dict]:
-    """Pull fresh rainfall (IMD) and soil moisture (satellite) readings for
-    every registered location, run the predictor, and persist both. This is
-    what a scheduled job or the manual /api/sync/run endpoint calls."""
+    """Pull fresh environmental readings, then run risk inference in one batch."""
+    locations = db.query(Location).all()
+    if not locations:
+        return []
+
+    fetched = []
+    features = []
+    for location in locations:
+        rainfall = imd_service.get_latest_rainfall(
+            location.lat, location.lon, location.imd_district_id
+        )
+        soil_moisture = satellite_service.get_latest_soil_moisture(
+            location.lat, location.lon
+        )
+        fetched.append((location, rainfall, soil_moisture))
+        features.append(
+            RiskFeatures(
+                rainfall_mm_24h=rainfall.rainfall_mm_24h,
+                soil_moisture_pct=soil_moisture,
+                slope_deg=location.slope_deg,
+                temperature_c=rainfall.temperature_c,
+            )
+        )
+
+    predictions = predict_batch(features)
     results = []
-    for location in db.query(Location).all():
-        rainfall = imd_service.get_latest_rainfall(location.lat, location.lon, location.imd_district_id)
-        soil_moisture = satellite_service.get_latest_soil_moisture(location.lat, location.lon)
-        prediction = _run_and_store(
-            db,
-            location,
+    for (location, rainfall, soil_moisture), risk in zip(fetched, predictions):
+        reading = Reading(
+            location_id=location.id,
+            source="sync",
             rainfall_mm_24h=rainfall.rainfall_mm_24h,
             soil_moisture_pct=soil_moisture,
             temperature_c=rainfall.temperature_c,
-            source="sync",
+            recorded_at=datetime.now(timezone.utc),
         )
+        db.add(reading)
+        db.flush()
+
+        prediction = Prediction(
+            location_id=location.id,
+            reading_id=reading.id,
+            risk_score=risk.risk_score,
+            risk_level=risk.risk_level,
+            model_used=risk.model_used,
+            contributing_factors=json.dumps(risk.contributing_factors),
+            recommendation=risk.recommendation,
+            created_at=datetime.now(timezone.utc),
+        )
+        db.add(prediction)
         results.append({"location_id": location.id, "risk_level": prediction.risk_level})
+
+    db.commit()
     return results
 
 

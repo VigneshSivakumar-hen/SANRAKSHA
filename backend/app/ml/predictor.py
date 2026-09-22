@@ -12,6 +12,7 @@ API never breaks because a model artifact wasn't shipped.
 
 import logging
 from dataclasses import dataclass
+from typing import Sequence
 
 from app.core.config import settings
 
@@ -161,31 +162,62 @@ def _predict_rule_based(features: RiskFeatures) -> RiskResult:
     )
 
 
+def _feature_row(features: RiskFeatures) -> list[float]:
+    """Build the model feature vector without constructing a DataFrame."""
+    values = {
+        "rainfall_mm_24h": float(features.rainfall_mm_24h),
+        "soil_moisture_pct": float(features.soil_moisture_pct),
+        "slope_deg": float(features.slope_deg),
+        "temperature_c": float(features.temperature_c if features.temperature_c is not None else 20.0),
+    }
+    return [values[name] for name in _trained_features]
+
+
+def _predict_trained_batch(features_list: Sequence[RiskFeatures], model) -> list[RiskResult]:
+    """Run all model inferences in one vectorized call."""
+    import numpy as np
+
+    matrix = np.asarray([_feature_row(features) for features in features_list], dtype=float)
+    probabilities = model.predict_proba(matrix)[:, 1]
+
+    results = []
+    for features, probability in zip(features_list, probabilities):
+        score = round(float(probability) * 100, 1)
+        level = _risk_level(score)
+        results.append(
+            RiskResult(
+                risk_score=score,
+                risk_level=level,
+                contributing_factors=_contributing_factors(features),
+                recommendation=_recommendation(level),
+                model_used="trained",
+            )
+        )
+    return results
+
+
+def _predict_rule_based_batch(features_list: Sequence[RiskFeatures]) -> list[RiskResult]:
+    return [_predict_rule_based(features) for features in features_list]
+
+
+def predict_batch(features_list: Sequence[RiskFeatures]) -> list[RiskResult]:
+    """Fast batch prediction for dashboards, scheduled syncs and IoT bursts."""
+    features_list = list(features_list)
+    if not features_list:
+        return []
+
+    model = _load_trained_model()
+    if model is not None:
+        try:
+            return _predict_trained_batch(features_list, model)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Batch model inference failed (%s); using rule-based fallback.", exc)
+
+    return _predict_rule_based_batch(features_list)
+
+
 def _predict_trained(features: RiskFeatures, model) -> RiskResult:
-    import pandas as pd
-
-    row = pd.DataFrame(
-        [
-            {
-                "rainfall_mm_24h": features.rainfall_mm_24h,
-                "soil_moisture_pct": features.soil_moisture_pct,
-                "slope_deg": features.slope_deg,
-                "temperature_c": features.temperature_c if features.temperature_c is not None else 20.0,
-            }
-        ]
-    )[_trained_features]
-
-    probability = model.predict_proba(row)[0][1]
-    score = round(float(probability) * 100, 1)
-    level = _risk_level(score)
-
-    return RiskResult(
-        risk_score=score,
-        risk_level=level,
-        contributing_factors=_contributing_factors(features),
-        recommendation=_recommendation(level),
-        model_used="trained",
-    )
+    return _predict_trained_batch([features], model)[0]
 
 
 def predict(features: RiskFeatures) -> RiskResult:
