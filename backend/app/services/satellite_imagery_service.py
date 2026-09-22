@@ -153,8 +153,15 @@ def _search_collection(
     now = datetime.now(timezone.utc)
     start = now - timedelta(days=max(1, settings.SATELLITE_LOOKBACK_DAYS))
 
+    # Search for scenes whose footprint actually contains the monitored
+    # point. A BBOX-only search can return a neighboring Sentinel tile that
+    # merely intersects the AOI, which can later render as a mostly no-data
+    # image when the exact scene is requested.
     payload: dict[str, Any] = {
-        "bbox": _bbox(lat, lon),
+        "intersects": {
+            "type": "Point",
+            "coordinates": [float(lon), float(lat)],
+        },
         "datetime": f"{start.isoformat().replace('+00:00', 'Z')}/"
         f"{now.isoformat().replace('+00:00', 'Z')}",
         "collections": [collection],
