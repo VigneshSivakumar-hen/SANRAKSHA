@@ -96,7 +96,7 @@ export default function SatelliteObservationPanel({ location }) {
           <div className="satellite-eyebrow">EARTH OBSERVATION</div>
           <h3>Latest satellite acquisition</h3>
           <p>
-            Near-real-time imagery from Copernicus Sentinel data for{" "}
+            Latest available Copernicus Sentinel observation for{" "}
             <strong>{location.location_name}</strong>.
           </p>
         </div>
@@ -167,6 +167,10 @@ export default function SatelliteObservationPanel({ location }) {
                   <span>{active.mission}</span>
                   <span>LATEST SCENE</span>
                 </div>
+                <div className="satellite-coverage-note" aria-hidden="true">
+                  <span>NO-DATA</span>
+                  <small>outside valid scene coverage</small>
+                </div>
               </div>
 
               <div className="satellite-metadata">
@@ -178,6 +182,9 @@ export default function SatelliteObservationPanel({ location }) {
                       <small>
                         {Number(active.cloud_cover_pct).toFixed(1)}% cloud cover
                       </small>
+                      {Number(active.cloud_cover_pct) > 50 && (
+                        <em>Limited optical visibility · consider Sentinel-1 SAR</em>
+                      )}
                     </div>
                   )}
 
