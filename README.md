@@ -79,8 +79,8 @@ MQTT provides lightweight communication between sensor devices, the MQTT broker,
 **🗺️ Risk Visualization**
 The React dashboard displays monitored locations on a map and lists their current risk levels, with a live "last updated" indicator and a color legend.
 
-**🛰️ Near-Real-Time Sentinel Imagery**
-The dashboard can request the latest available Copernicus Sentinel-2 optical scene and Sentinel-1 SAR scene for a monitored location. The backend searches the Copernicus catalog and proxies rendered imagery through the FastAPI API, so Copernicus credentials never reach the browser. Satellite observations are discrete acquisitions rather than a continuous video stream.
+**🛰️ Copernicus Sentinel Satellite Monitoring**
+The dashboard can request the latest available Copernicus Sentinel-2 optical scene and Sentinel-1 SAR scene for a monitored location. The backend searches the Copernicus Data Space catalog using the monitoring point footprint and proxies rendered imagery through the FastAPI API, so Copernicus credentials never reach the browser. Sentinel-2 provides optical RGB imagery with cloud-quality information, while Sentinel-1 provides cloud-independent SAR imagery using a VV/VH false-color composite. Satellite observations are discrete acquisitions rather than a continuous video stream.
 
 **⚡ Real-Time Monitoring**
 Incoming sensor data can be continuously processed and converted into updated risk predictions; the dashboard polls for fresh data automatically.
@@ -147,7 +147,7 @@ The public prediction endpoint is rate-limited per IP, and privileged endpoints 
 | MQTT Broker | Eclipse Mosquitto |
 | Containerization | Docker, Docker Compose |
 | Data Processing | Pandas, NumPy |
-| GIS / Geospatial | GeoPandas |
+| GIS / Geospatial | GeoPandas, Leaflet, React Leaflet |
 | Hosting | Render (Blueprint deploy) |
 
 ## 📁 Project Structure
@@ -271,10 +271,10 @@ Future versions can integrate additional warning channels such as SMS alerts, mo
 
 SANRAKSHA is designed to evolve into a larger disaster-management platform. Planned enhancements include:
 
-- 🛰️ Satellite-based terrain and rainfall analysis (Sentinel-1/Sentinel-2 integration is now implemented)
+- 🛰️ Advanced Sentinel-1/Sentinel-2 terrain and environmental analysis
 - 🗺️ Advanced GIS risk maps
 - 📱 Flutter mobile application
-- 🌧️ Real-time weather data integration (real IMD API, beyond the current mock data)
+- 🌧️ Expanded operational weather-provider integration and additional weather sources
 - 📡 LoRa / LoRaWAN sensor networks
 - 📵 Offline-first monitoring and synchronization
 - 🚨 SMS and emergency alerts
@@ -294,8 +294,9 @@ The satellite integration uses the Copernicus Data Space Sentinel Hub OAuth2 + C
 3. Redeploy the backend.
 4. Open a monitored location in the dashboard. The **Latest satellite acquisition** panel will search the Copernicus catalog and render the selected Sentinel-2 or Sentinel-1 acquisition.
 5. Sentinel-1 SAR remains available when optical imagery is cloudy or when SAR is the more recent observation.
+6. The Sentinel-1 panel displays a VV/VH false-color composite and explains the SAR channels in the dashboard legend.
 
-The implementation uses a backend proxy so the browser never receives the Copernicus OAuth client secret.
+The implementation uses a backend proxy so the browser never receives the Copernicus OAuth client secret. Catalog searches use the monitored location's exact point geometry to avoid selecting a neighboring scene footprint that does not fully cover the monitoring point.
 
 ## 🔐 Security & Reliability
 
@@ -330,6 +331,8 @@ The current prototype demonstrates:
 - FastAPI backend, publicly deployed
 - React monitoring dashboard, publicly deployed
 - Machine-learning-based risk prediction
+- Scheduled environmental data synchronization
+- Copernicus Sentinel-1/Sentinel-2 imagery integration
 - PostgreSQL persistence (SQLite for local dev)
 - MQTT communication (local/Docker Compose)
 - IoT gateway (local/Docker Compose)
