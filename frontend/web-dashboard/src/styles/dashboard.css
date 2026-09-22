@@ -425,6 +425,54 @@
   gap: 8px;
 }
 
+.satellite-cloud-status {
+  position: relative;
+  overflow: hidden;
+}
+
+.satellite-cloud-status::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--text-muted);
+}
+
+.satellite-cloud-status.is-clear::before {
+  background: var(--risk-low);
+}
+
+.satellite-cloud-status.is-partial::before {
+  background: var(--risk-moderate);
+}
+
+.satellite-cloud-status.is-cloudy::before {
+  background: var(--risk-high);
+}
+
+.satellite-cloud-status strong {
+  font-size: 12px;
+}
+
+.satellite-cloud-status small {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 9px;
+  font-family: var(--font-mono);
+}
+
+.satellite-image-frame.is-partial,
+.satellite-image-frame.is-cloudy {
+  border-color: color-mix(in srgb, var(--risk-moderate) 45%, var(--line));
+}
+
+.satellite-image-frame.is-cloudy {
+  border-color: color-mix(in srgb, var(--risk-high) 45%, var(--line));
+}
+
 .satellite-metadata > div {
   padding: 10px 11px;
   border: 1px solid var(--line);

@@ -153,7 +153,7 @@ export default function SatelliteObservationPanel({ location }) {
 
           {active && (
             <div className="satellite-observation-content">
-              <div className="satellite-image-frame">
+              <div className={"satellite-image-frame" + cloudClass(active.cloud_cover_pct)}>
                 <img
                   src={satelliteImageUrl(
                     location.location_id,
@@ -170,6 +170,17 @@ export default function SatelliteObservationPanel({ location }) {
               </div>
 
               <div className="satellite-metadata">
+                {active.cloud_cover_pct !== null &&
+                  active.cloud_cover_pct !== undefined && (
+                    <div className={"satellite-cloud-status " + cloudStatus(active.cloud_cover_pct).className}>
+                      <span>Image quality</span>
+                      <strong>{cloudStatus(active.cloud_cover_pct).label}</strong>
+                      <small>
+                        {Number(active.cloud_cover_pct).toFixed(1)}% cloud cover
+                      </small>
+                    </div>
+                  )}
+
                 <div>
                   <span>Acquisition</span>
                   <strong>{formatDate(active.acquired_at)}</strong>
@@ -181,16 +192,6 @@ export default function SatelliteObservationPanel({ location }) {
                     {shortSceneId(active.scene_id)}
                   </strong>
                 </div>
-
-                {active.cloud_cover_pct !== null &&
-                  active.cloud_cover_pct !== undefined && (
-                    <div>
-                      <span>Cloud cover</span>
-                      <strong>
-                        {Number(active.cloud_cover_pct).toFixed(1)}%
-                      </strong>
-                    </div>
-                  )}
 
                 {active.timeliness && (
                   <div>
@@ -235,4 +236,31 @@ function shortSceneId(value) {
   return value.length > 32
     ? `${value.slice(0, 16)}…${value.slice(-12)}`
     : value;
+}
+
+function cloudStatus(value) {
+  const cloud = Number(value);
+
+  if (!Number.isFinite(cloud)) {
+    return { label: "UNKNOWN", className: "is-unknown" };
+  }
+
+  if (cloud <= 20) {
+    return { label: "CLEAR", className: "is-clear" };
+  }
+
+  if (cloud <= 50) {
+    return { label: "PARTIAL CLOUD", className: "is-partial" };
+  }
+
+  return { label: "CLOUDY", className: "is-cloudy" };
+}
+
+function cloudClass(value) {
+  const cloud = Number(value);
+
+  if (!Number.isFinite(cloud)) return "";
+  if (cloud > 50) return " is-cloudy";
+  if (cloud > 20) return " is-partial";
+  return " is-clear";
 }
