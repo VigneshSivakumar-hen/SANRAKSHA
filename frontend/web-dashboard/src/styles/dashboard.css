@@ -404,36 +404,6 @@
   object-fit: cover;
 }
 
-.satellite-coverage-note {
-  position: absolute;
-  right: 10px;
-  bottom: 10px;
-  z-index: 2;
-  display: inline-flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 7px 9px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: color-mix(in srgb, var(--panel) 88%, transparent);
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.04em;
-  backdrop-filter: blur(8px);
-  pointer-events: none;
-}
-
-.satellite-coverage-note span {
-  color: var(--text);
-  font-weight: 600;
-}
-
-.satellite-coverage-note small {
-  font-size: 8px;
-  letter-spacing: 0;
-}
-
 .satellite-cloud-status em {
   display: block;
   margin-top: 6px;

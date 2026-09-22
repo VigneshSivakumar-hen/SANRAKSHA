@@ -167,10 +167,6 @@ export default function SatelliteObservationPanel({ location }) {
                   <span>{active.mission}</span>
                   <span>LATEST SCENE</span>
                 </div>
-                <div className="satellite-coverage-note" aria-hidden="true">
-                  <span>NO-DATA</span>
-                  <small>outside valid scene coverage</small>
-                </div>
               </div>
 
               <div className="satellite-metadata">
