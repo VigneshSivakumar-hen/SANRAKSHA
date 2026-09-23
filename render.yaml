@@ -89,6 +89,10 @@ services:
       - key: SYNC_INTERVAL_MINUTES
         value: "30"
 
+      # Parallelize network-bound provider fetches during each sync.
+      - key: SYNC_FETCH_WORKERS
+        value: "5"
+
       # --------------------------------------------------------
       # Authentication
       # --------------------------------------------------------
