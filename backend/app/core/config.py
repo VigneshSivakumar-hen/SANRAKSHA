@@ -90,6 +90,11 @@ class Settings:
     SYNC_INTERVAL_MINUTES: int = int(
         os.getenv("SYNC_INTERVAL_MINUTES", "30")
     )
+    # Worker threads are used only for outbound environmental-data requests.
+    # SQLAlchemy database writes remain on the sync thread.
+    SYNC_FETCH_WORKERS: int = max(
+        1, int(os.getenv("SYNC_FETCH_WORKERS", "5"))
+    )
     ENABLE_SCHEDULER: bool = (
         os.getenv("ENABLE_SCHEDULER", "false").lower() == "true"
     )
