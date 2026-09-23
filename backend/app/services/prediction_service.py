@@ -1,5 +1,9 @@
 import json
+import logging
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+
+from sqlalchemy import func
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -7,6 +11,8 @@ from sqlalchemy.orm import Session
 from app.ml.predictor import RiskFeatures, predict, predict_batch
 from app.models import Location, Prediction, Reading
 from app.services import imd_service, satellite_service
+
+logger = logging.getLogger(__name__)
 
 SAMPLE_DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "sample" / "sample_readings.json"
 
@@ -85,33 +91,61 @@ def seed_if_empty(db: Session) -> None:
         )
 
 
+def _fetch_environment(location: Location):
+    """Fetch external environmental data for one location.
+
+    This helper does not touch SQLAlchemy, so it is safe to run in worker
+    threads while the database session remains on the caller thread.
+    """
+    rainfall = imd_service.get_latest_rainfall(
+        location.lat, location.lon, location.imd_district_id
+    )
+    soil_moisture = satellite_service.get_latest_soil_moisture(
+        location.lat, location.lon
+    )
+    return location, rainfall, soil_moisture
+
+
 def sync_all_locations(db: Session) -> list[dict]:
-    """Pull fresh environmental readings, then run risk inference in one batch."""
+    """Fetch environmental data concurrently, then infer/store results."""
     locations = db.query(Location).all()
     if not locations:
         return []
 
-    fetched = []
-    features = []
-    for location in locations:
-        rainfall = imd_service.get_latest_rainfall(
-            location.lat, location.lon, location.imd_district_id
+    worker_count = min(settings.SYNC_FETCH_WORKERS, len(locations))
+    logger.info(
+        "Starting environmental sync for %d locations using %d workers.",
+        len(locations),
+        worker_count,
+    )
+
+    # Only network-bound provider calls run in worker threads. The SQLAlchemy
+    # Session is never shared with worker threads.
+    with ThreadPoolExecutor(
+        max_workers=worker_count,
+        thread_name_prefix="sanraksha-sync",
+    ) as executor:
+        futures = [
+            executor.submit(_fetch_environment, location)
+            for location in locations
+        ]
+        # Preserve location order so prediction results map deterministically.
+        fetched = [future.result() for future in futures]
+
+    features = [
+        RiskFeatures(
+            rainfall_mm_24h=rainfall.rainfall_mm_24h,
+            soil_moisture_pct=soil_moisture,
+            slope_deg=location.slope_deg,
+            temperature_c=rainfall.temperature_c,
         )
-        soil_moisture = satellite_service.get_latest_soil_moisture(
-            location.lat, location.lon
-        )
-        fetched.append((location, rainfall, soil_moisture))
-        features.append(
-            RiskFeatures(
-                rainfall_mm_24h=rainfall.rainfall_mm_24h,
-                soil_moisture_pct=soil_moisture,
-                slope_deg=location.slope_deg,
-                temperature_c=rainfall.temperature_c,
-            )
-        )
+        for location, rainfall, soil_moisture in fetched
+    ]
 
     predictions = predict_batch(features)
     results = []
+
+    # Database writes remain sequential and use the existing transaction.
     for (location, rainfall, soil_moisture), risk in zip(fetched, predictions):
         reading = Reading(
             location_id=location.id,
@@ -138,6 +172,7 @@ def sync_all_locations(db: Session) -> list[dict]:
         results.append({"location_id": location.id, "risk_level": prediction.risk_level})
 
     db.commit()
+    logger.info("Environmental sync completed for %d locations.", len(results))
     return results
 
 
@@ -161,38 +196,53 @@ def ingest_sensor_reading(db: Session, location_id: str, rainfall_mm_24h: float,
 
 
 def get_dashboard_readings(db: Session) -> list[dict]:
-    """Latest reading + prediction for every registered location."""
-    results = []
-    for location in db.query(Location).all():
-        prediction = (
-            db.query(Prediction)
-            .filter(Prediction.location_id == location.id)
-            .order_by(Prediction.created_at.desc())
-            .first()
+    """Latest reading + prediction for every location using one query."""
+    latest_prediction_ids = (
+        db.query(
+            Prediction.location_id,
+            func.max(Prediction.id).label("prediction_id"),
         )
-        if prediction is None:
-            continue
-        reading = db.query(Reading).filter(Reading.id == prediction.reading_id).first()
-        results.append(
-            {
-                "location_id": location.id,
-                "location_name": location.name,
-                "state": location.state,
-                "lat": location.lat,
-                "lon": location.lon,
-                "slope_deg": location.slope_deg,
-                "rainfall_mm_24h": reading.rainfall_mm_24h if reading else None,
-                "soil_moisture_pct": reading.soil_moisture_pct if reading else None,
-                "temperature_c": reading.temperature_c if reading else None,
-                "risk_score": prediction.risk_score,
-                "risk_level": prediction.risk_level,
-                "model_used": prediction.model_used,
-                "contributing_factors": json.loads(prediction.contributing_factors),
-                "recommendation": prediction.recommendation,
-                "updated_at": prediction.created_at.isoformat(),
-            }
+        .group_by(Prediction.location_id)
+        .subquery()
+    )
+
+    rows = (
+        db.query(Location, Prediction, Reading)
+        .join(
+            latest_prediction_ids,
+            latest_prediction_ids.c.location_id == Location.id,
         )
-    return results
+        .join(
+            Prediction,
+            Prediction.id == latest_prediction_ids.c.prediction_id,
+        )
+        .outerjoin(
+            Reading,
+            Reading.id == Prediction.reading_id,
+        )
+        .all()
+    )
+
+    return [
+        {
+            "location_id": location.id,
+            "location_name": location.name,
+            "state": location.state,
+            "lat": location.lat,
+            "lon": location.lon,
+            "slope_deg": location.slope_deg,
+            "rainfall_mm_24h": reading.rainfall_mm_24h if reading else None,
+            "soil_moisture_pct": reading.soil_moisture_pct if reading else None,
+            "temperature_c": reading.temperature_c if reading else None,
+            "risk_score": prediction.risk_score,
+            "risk_level": prediction.risk_level,
+            "model_used": prediction.model_used,
+            "contributing_factors": json.loads(prediction.contributing_factors),
+            "recommendation": prediction.recommendation,
+            "updated_at": prediction.created_at.isoformat(),
+        }
+        for location, prediction, reading in rows
+    ]
 
 
 def get_location_history(db: Session, location_id: str, limit: int = 50) -> list[dict]:
